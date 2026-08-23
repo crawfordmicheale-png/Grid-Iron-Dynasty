@@ -30,7 +30,16 @@ const s = {
   runDist: {}, passDist: {},
 };
 
+// Reset player condition regularly. Without this, fatigue and injuries
+// accumulate across the whole sample and the harness ends up measuring a league
+// of exhausted, broken players rather than a real one.
+const resetCondition = () => {
+  for (const t of teams) for (const p of t.roster) { p.fatigue = 100; p.injury = null; }
+};
+resetCondition();
+
 for (let i = 0; i < N; i += 1) {
+  if (i % 60 === 0) resetCondition();
   const off = rng.pick(teams);
   let def = rng.pick(teams);
   while (def.id === off.id) def = rng.pick(teams);

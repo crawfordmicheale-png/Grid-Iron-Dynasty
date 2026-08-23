@@ -21,7 +21,7 @@ import { clamp, remap, byDesc } from '../core/util.js';
 // hunting for them.
 const STARTER_BASELINE = {
   QB: 80, RB: 79, FB: 72, WR: 81, TE: 78, OT: 80, OG: 78, C: 78,
-  EDGE: 81, DT: 79, LB: 79, CB: 80, S: 78, K: 76, P: 75, LS: 69,
+  EDGE: 81, DT: 79, LB: 79, CB: 80, S: 78, K: 80, P: 78, LS: 69,
 };
 
 // How fast quality falls off down the depth chart at each position.
@@ -240,7 +240,7 @@ export function generateLeague(opts = {}) {
 
   // Spread the league across a talent curve: a few real contenders, a few
   // genuinely bad clubs, most of them close enough that a good week matters.
-  const strengths = TEAM_DATA.map(() => rng.gauss(0, 4.4));
+  const strengths = TEAM_DATA.map(() => rng.gauss(0, 3.5));
 
   TEAM_DATA.forEach((data, i) => {
     const team = new Team({ id: data.id });

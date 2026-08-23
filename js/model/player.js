@@ -20,6 +20,21 @@ export const DEV_TIERS = {
   elite: { key: 'elite', name: 'Generational', mult: 2.4, weight: 2 },
 };
 
+// How strongly rating differences translate into on-field outcomes.
+//
+// Every phase of a snap reads ratings, and a stronger team is stronger in all
+// of them at once, so a linear reading compounds: a thirteen-point roster gap
+// produced a twenty-four point average margin, where the real league produces
+// about eleven. Compressing toward the league mean keeps a 95 clearly better
+// than a 70 while stopping the advantage from multiplying itself five times
+// over in a single play. This is the master dial on league parity.
+export const TALENT_MEAN = 70;
+export const TALENT_COMPRESSION = 0.46;
+
+export function compressRating(v) {
+  return TALENT_MEAN + (v - TALENT_MEAN) * TALENT_COMPRESSION;
+}
+
 // Age curve: fraction of physical prime available at a given age.
 // Peak 25-27, gentle rise before, real decline after 30.
 export function ageFactor(age, shift = 0) {
@@ -189,7 +204,7 @@ export class Player {
     // Morale, mild but real.
     v += remap(this.morale, 0, 100, -5, 3);
 
-    return clamp(v, 5, 99);
+    return clamp(compressRating(v), 5, 99);
   }
 
   // --- Condition -------------------------------------------------------------

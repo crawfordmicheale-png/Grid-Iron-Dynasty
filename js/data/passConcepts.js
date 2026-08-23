@@ -63,7 +63,7 @@ export const PASS_CONCEPTS = {
     family: 'westCoast', dropDepth: 5, timing: 2.3,
     desc: 'Puts the flat defender in a bind: jump the flat and the curl is open behind him.',
     routes: { X: 'curl', SLOT: 'flat', Z: 'hook', TE: 'checkdown', RB: 'block' },
-    progression: ['X', 'SLOT', 'Z', 'TE'],
+    progression: ['Z', 'SLOT', 'X', 'TE'],
     tags: ['zoneBeater', 'cover3Beater'],
   }),
   drive: C('drive', 'Drive', {
@@ -124,6 +124,35 @@ export const PASS_CONCEPTS = {
     routes: { X: 'drag', SLOT: 'cross', Z: 'go', TE: 'checkdown', RB: 'block' },
     progression: ['X', 'SLOT', 'Z', 'TE'],
     tags: ['manBeater', 'intermediate'],
+  }),
+
+  stickNod: C('stickNod', 'Stick-Nod', {
+    family: 'westCoast', dropDepth: 5, timing: 2.2,
+    desc: 'Tight end sticks at seven and nods up. The underneath defender has to honour both.',
+    routes: { TE: 'stick', SLOT: 'hook', X: 'quickOut', Z: 'comeback', RB: 'checkdown' },
+    progression: ['TE', 'SLOT', 'X', 'RB'],
+    tags: ['zoneBeater', 'safe'],
+  }),
+  optionRoutes: C('optionRoutes', 'Option', {
+    family: 'westCoast', dropDepth: 5, timing: 2.2,
+    desc: 'Every inside receiver reads leverage and breaks away from it. Almost impossible to jump.',
+    routes: { SLOT: 'pivot', TE: 'stick', X: 'hook', Z: 'hook', RB: 'swing' },
+    progression: ['SLOT', 'X', 'TE', 'RB'],
+    tags: ['manBeater', 'zoneBeater', 'safe'],
+  }),
+  ohio: C('ohio', 'Ohio', {
+    family: 'quickGame', dropDepth: 3, timing: 1.9, protection: 'quick',
+    desc: 'Quick out and a pivot underneath. Gets the ball out on rhythm against pressure.',
+    routes: { X: 'quickOut', SLOT: 'pivot', Z: 'slant', TE: 'stick', RB: 'checkdown' },
+    progression: ['X', 'SLOT', 'TE', 'RB'],
+    tags: ['quick', 'blitzBeater', 'zoneBeater'],
+  }),
+  hankConcept: C('hankConcept', 'Hank', {
+    family: 'westCoast', dropDepth: 5, timing: 2.2,
+    desc: 'Hooks outside, back releases late underneath. The staple third-and-six answer.',
+    routes: { X: 'hook', Z: 'hook', SLOT: 'quickOut', TE: 'stick', RB: 'angle' },
+    progression: ['X', 'SLOT', 'Z', 'RB'],
+    tags: ['zoneBeater', 'safe', 'thirdAndShort'],
   }),
 
   // ---------------- Vertical game ----------------

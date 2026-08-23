@@ -19,27 +19,28 @@ import { clamp, remap, logistic, contest, round } from '../core/util.js';
 // --- Tuning constants -------------------------------------------------------
 // Named so the balance harness has one place to reach for.
 export const PASS_TUNING = {
-  baseHoldTime: 5.7,      // seconds an even blocker/rusher matchup lasts
+  baseHoldTime: 5.15,      // seconds an even blocker/rusher matchup lasts
   holdSpread: 0.32,        // lognormal sigma on that
-  ratingScale: 46,         // rating points that double or halve the hold time
+  ratingScale: 58,         // rating points that double or halve the hold time
   unblockedTime: 1.75,     // how long a free rusher takes to arrive
-  readTimeBase: 0.40,      // seconds per progression step at average PRG
+  readTimeBase: 0.35,      // seconds per progression step at average PRG
   sightAdjust: 0.22,       // time after the break before the QB can see it
   sepThreshold: 0.55,      // yards of separation the QB wants before throwing
   sepRatingScale: 0.042,   // yards of separation per point of rating advantage
   sepStructural: 0.24,     // how much the route/coverage table is worth, in yards
-  sepBase: 0.72,           // baseline daylight before route/coverage effects
+  sepBase: 0.12,           // baseline daylight before route/coverage effects
   sepNoise: 1.0,
   duressThresholdDrop: 0.85, // how much less open he will settle for when hit
-  duressPoiseBar: 52,      // poise needed to consistently get it out under duress
+  duressPoiseBar: 60,      // poise needed to consistently get it out under duress
   pressureLag: 0.35,       // delay between a rusher winning and the QB feeling it
-  depthThreshold: 0.078,   // extra separation demanded per yard of route depth
-  urgencyDecay: 0.55,      // how fast he stops being picky once the play is late
-  accBase: 72,             // difficulty floor for an accuracy check
-  accDepthCost: 0.98,      // difficulty added per yard of air
+  depthThreshold: 0.098,   // extra separation demanded per yard of route depth
+  urgencyDecay: 0.78,      // how fast he stops being picky once the play is late
+  accBase: 54,             // difficulty floor for an accuracy check
+  accDepthCost: 1.70,      // difficulty added per yard of air
   accSepRelief: 4.0,       // difficulty removed per yard of separation
+  accSpread: 15,           // rating points that meaningfully move an accuracy check
   sackEscapeScale: 30,
-  yacScale: 0.62,
+  yacScale: 0.64,
   yacBreakScale: 0.30,
 };
 
@@ -79,7 +80,7 @@ export function buildProtection(sim) {
   const center = offense.OL.C;
   const idScore = (offense.QB?.eff('awareness', ctx) ?? 50) * 0.6 + (center?.eff('awareness', ctx) ?? 50) * 0.4;
   const disguiseScore = 50 + (pressure.disguise ?? 1) * 14 + (defense.front.disguise ?? 1) * 6
-    - 50 + (sim.crowdNoise ?? 0) * 12;
+    - 50 + (sim.crowdNoise ?? 0) * 20;
   const detected = pressure.extraRushers === 0
     ? true
     : rng.next() < contest(idScore, disguiseScore, 16);
@@ -260,7 +261,9 @@ export function resolvePass(sim) {
 
   // How long the quarterback needs per read.
   const prg = qb.eff('progression', ctx);
-  const readTime = T.readTimeBase * remap(prg, 40, 99, 1.5, 0.62);
+  // A loud stadium slows a visiting offense's communication and operation.
+  const readTime = T.readTimeBase * remap(prg, 40, 99, 1.5, 0.62)
+    * (1 + (sim.crowdNoise ?? 0) * 0.08);
 
   // What he is willing to throw into. Aggression comes from the coach, the
   // quarterback's own temperament, and the situation.
@@ -289,9 +292,28 @@ export function resolvePass(sim) {
 
   // A rusher winning his rep and actually affecting the throw are not the same
   // moment; there is roughly a quarter second between them.
+  // Nobody open on the first trip through the progression. If the pocket is
+  // still clean he does what a quarterback actually does: holds, comes back
+  // through his reads, and gets less picky as the play gets late -- which is
+  // how the checkdown ends up being the throw. Only once protection breaks is
+  // he genuinely under pressure.
+  while (!chosen && t < protection.pressureTime) {
+    t += readTime * 0.6;
+    const lateness = Math.max(0, t - (play.timing ?? 2.5));
+    let best = null;
+    let bestGap = -Infinity;
+    for (const look of looks) {
+      if (look.openAt > t) continue;
+      const needed = threshold + look.route.depth * T.depthThreshold - lateness * T.urgencyDecay;
+      const gap = look.separation - needed;
+      if (gap > bestGap) { bestGap = gap; best = look; }
+    }
+    if (best && bestGap >= 0) { chosen = best; readsMade += 1; }
+  }
+
   const pressured = t >= protection.pressureTime + PASS_TUNING.pressureLag;
 
-  // Nobody open, or the pocket broke first.
+  // Protection broke before he found anybody.
   if (!chosen) {
     return underPressure(sim, protection, looks, t, readsMade, threshold);
   }
@@ -435,11 +457,16 @@ function throwBall(sim, look, opts) {
   // Arm strength matters most on deep and outside throws.
   if (route.band === 'deep') acc += (qb.eff('throwPower', throwCtx) - 78) * 0.30;
   else if (route.band === 'intermediate') acc += (qb.eff('throwPower', throwCtx) - 78) * 0.12;
+  // Short throws are rhythm throws off a three-step drop: the ball is out
+  // before the coverage can do much about it, and a screen is nearly a handoff.
+  // Scaled by actual depth rather than by band, so a four-yard drag gets the
+  // same help a four-yard slant does.
+  acc += remap(clamp(airYards, -2, 12), -2, 12, 11, 0);
   // Weather: wind and wet balls hurt the deep throw most.
   acc -= ctx.weather * (route.band === 'deep' ? 17 : route.band === 'intermediate' ? 10 : 5);
 
   const difficulty = T.accBase + airYards * T.accDepthCost - separation * T.accSepRelief;
-  const onTargetChance = clamp(logistic((acc - difficulty) / 13), 0.02, 0.985);
+  const onTargetChance = clamp(logistic((acc - difficulty) / PASS_TUNING.accSpread), 0.02, 0.985);
   const roll = rng.next();
 
   const result = {
@@ -501,7 +528,6 @@ function attemptCatch(sim, look, { pressured, onTarget }) {
     catchSkill = catchSkill * 0.75 + receiver.eff('catchTraffic', ctx) * 0.25;
   }
   catchSkill -= ctx.weather * 9;
-  if (!onTarget) catchSkill -= 16;
 
   const contestScore = defender
     ? defender.eff('ballHawk', ctx) * 0.5 + defender.eff('jumping', ctx) * 0.2 + defender.eff('manCover', ctx) * 0.3
@@ -509,13 +535,18 @@ function attemptCatch(sim, look, { pressured, onTarget }) {
   const pressureOnCatch = contestedBall ? contestScore : contestScore * 0.35;
 
   const dropMult = receiver.traitMult('dropMult');
-  // Centred so that an average receiver on an on-target ball catches it around
-  // nine times in ten. Completions are meant to be lost to accuracy and to
-  // defenders at the catch point, not to drops.
-  const catchChance = clamp(
-    logistic((catchSkill - 16 - pressureOnCatch * 0.40 + separation * 2.9) / 12) / dropMult ** 0.4,
-    0.03, 0.975,
-  );
+  // Built in logit space around two anchors: an on-target ball to an average
+  // receiver in space is caught about nine times in ten, and a ball that is
+  // merely catchable is caught about one time in four. Everything else moves
+  // relative to those. Working in logit space keeps the model off its ceiling,
+  // which is what made an earlier version catch even bad deep balls.
+  let logit = onTarget ? 3.35 : -1.0;
+  logit += (catchSkill - 72) * 0.045;
+  logit -= pressureOnCatch * 0.033;
+  logit += clamp(separation, -1, 3) * 0.25;
+  // A ball in the air for forty yards is simply harder to track and adjust to.
+  if (route.band === 'deep') logit -= 0.55;
+  const catchChance = clamp(logistic(logit) / dropMult ** 0.4, 0.02, 0.97);
 
   if (rng.next() < catchChance) {
     return { caught: true, contested: contestedBall, tackler: defender };
@@ -536,9 +567,13 @@ function attemptCatch(sim, look, { pressured, onTarget }) {
     };
   }
 
+  // Only a catchable, on-target ball can be charged as a drop; a throw that
+  // was never catchable is simply an incompletion.
   return {
-    caught: false, dropped: true,
-    narrative: `${receiver.shortName} can't hang on. Incomplete.`,
+    caught: false, dropped: onTarget,
+    narrative: onTarget
+      ? `${receiver.shortName} can't hang on. Incomplete.`
+      : `The throw is away from ${receiver.shortName}. Incomplete.`,
   };
 }
 
@@ -547,7 +582,7 @@ function interceptionChance(sim, look, { dangerous, pressured }) {
   const { defender, route, separation } = look;
   const qb = sim.offense.QB;
   if (!defender) return 0.004;
-  let p = dangerous ? 0.058 : 0.012;
+  let p = dangerous ? 0.061 : 0.015;
   p *= route.risk ?? 1;
   p *= remap(defender.eff('ballHawk', ctx), 40, 95, 0.45, 2.0);
   p *= remap(separation, -1, 3.5, 1.9, 0.35);

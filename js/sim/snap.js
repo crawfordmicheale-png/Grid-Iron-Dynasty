@@ -13,21 +13,21 @@ import { clamp, remap, round } from '../core/util.js';
 // are set so a game lands near the real average of 12-13 accepted penalties.
 
 export const PENALTIES = {
-  falseStart: { key: 'falseStart', name: 'False Start', on: 'OFF', yards: -5, preSnap: true, replay: true, rate: 0.0115, pos: ['OT', 'OG', 'C', 'TE'] },
-  offside: { key: 'offside', name: 'Offside', on: 'DEF', yards: 5, preSnap: true, replay: true, rate: 0.0060, pos: ['EDGE', 'DT'] },
-  delayOfGame: { key: 'delayOfGame', name: 'Delay of Game', on: 'OFF', yards: -5, preSnap: true, replay: true, rate: 0.0035, pos: ['QB'] },
-  neutralZone: { key: 'neutralZone', name: 'Neutral Zone Infraction', on: 'DEF', yards: 5, preSnap: true, replay: true, rate: 0.0030, pos: ['EDGE', 'DT'] },
-  illegalFormation: { key: 'illegalFormation', name: 'Illegal Formation', on: 'OFF', yards: -5, preSnap: true, replay: true, rate: 0.0020, pos: ['WR', 'TE'] },
+  falseStart: { key: 'falseStart', name: 'False Start', on: 'OFF', yards: -5, preSnap: true, replay: true, rate: 0.01518, pos: ['OT', 'OG', 'C', 'TE'] },
+  offside: { key: 'offside', name: 'Offside', on: 'DEF', yards: 5, preSnap: true, replay: true, rate: 0.00792, pos: ['EDGE', 'DT'] },
+  delayOfGame: { key: 'delayOfGame', name: 'Delay of Game', on: 'OFF', yards: -5, preSnap: true, replay: true, rate: 0.00462, pos: ['QB'] },
+  neutralZone: { key: 'neutralZone', name: 'Neutral Zone Infraction', on: 'DEF', yards: 5, preSnap: true, replay: true, rate: 0.00396, pos: ['EDGE', 'DT'] },
+  illegalFormation: { key: 'illegalFormation', name: 'Illegal Formation', on: 'OFF', yards: -5, preSnap: true, replay: true, rate: 0.00264, pos: ['WR', 'TE'] },
 
-  offensiveHolding: { key: 'offensiveHolding', name: 'Offensive Holding', on: 'OFF', yards: -10, negates: true, rate: 0.0165, pos: ['OT', 'OG', 'C', 'TE'] },
-  defensiveHolding: { key: 'defensiveHolding', name: 'Defensive Holding', on: 'DEF', yards: 5, autoFirst: true, rate: 0.0055, pos: ['CB', 'S', 'LB'] },
-  passInterference: { key: 'passInterference', name: 'Defensive Pass Interference', on: 'DEF', yards: 'spot', autoFirst: true, rate: 0.0110, passOnly: true, pos: ['CB', 'S', 'LB'] },
-  illegalContact: { key: 'illegalContact', name: 'Illegal Contact', on: 'DEF', yards: 5, autoFirst: true, rate: 0.0035, passOnly: true, pos: ['CB'] },
-  offensivePI: { key: 'offensivePI', name: 'Offensive Pass Interference', on: 'OFF', yards: -10, negates: true, rate: 0.0035, passOnly: true, pos: ['WR', 'TE'] },
-  faceMask: { key: 'faceMask', name: 'Facemask', on: 'DEF', yards: 15, autoFirst: true, rate: 0.0028, pos: ['LB', 'DT', 'EDGE', 'S'] },
-  roughingPasser: { key: 'roughingPasser', name: 'Roughing the Passer', on: 'DEF', yards: 15, autoFirst: true, rate: 0.0040, passOnly: true, pos: ['EDGE', 'DT'] },
-  unnecessaryRoughness: { key: 'unnecessaryRoughness', name: 'Unnecessary Roughness', on: 'DEF', yards: 15, autoFirst: true, rate: 0.0030, pos: ['S', 'LB', 'CB'] },
-  illegalBlock: { key: 'illegalBlock', name: 'Illegal Block in the Back', on: 'OFF', yards: -10, negates: true, rate: 0.0030, pos: ['WR', 'RB'] },
+  offensiveHolding: { key: 'offensiveHolding', name: 'Offensive Holding', on: 'OFF', yards: -10, negates: true, rate: 0.02178, pos: ['OT', 'OG', 'C', 'TE'] },
+  defensiveHolding: { key: 'defensiveHolding', name: 'Defensive Holding', on: 'DEF', yards: 5, autoFirst: true, rate: 0.00726, pos: ['CB', 'S', 'LB'] },
+  passInterference: { key: 'passInterference', name: 'Defensive Pass Interference', on: 'DEF', yards: 'spot', autoFirst: true, rate: 0.01452, passOnly: true, pos: ['CB', 'S', 'LB'] },
+  illegalContact: { key: 'illegalContact', name: 'Illegal Contact', on: 'DEF', yards: 5, autoFirst: true, rate: 0.00462, passOnly: true, pos: ['CB'] },
+  offensivePI: { key: 'offensivePI', name: 'Offensive Pass Interference', on: 'OFF', yards: -10, negates: true, rate: 0.00462, passOnly: true, pos: ['WR', 'TE'] },
+  faceMask: { key: 'faceMask', name: 'Facemask', on: 'DEF', yards: 15, autoFirst: true, rate: 0.0037, pos: ['LB', 'DT', 'EDGE', 'S'] },
+  roughingPasser: { key: 'roughingPasser', name: 'Roughing the Passer', on: 'DEF', yards: 15, autoFirst: true, rate: 0.00528, passOnly: true, pos: ['EDGE', 'DT'] },
+  unnecessaryRoughness: { key: 'unnecessaryRoughness', name: 'Unnecessary Roughness', on: 'DEF', yards: 15, autoFirst: true, rate: 0.00396, pos: ['S', 'LB', 'CB'] },
+  illegalBlock: { key: 'illegalBlock', name: 'Illegal Block in the Back', on: 'OFF', yards: -10, negates: true, rate: 0.00396, pos: ['WR', 'RB'] },
 };
 
 const PENALTY_KEYS = Object.keys(PENALTIES);
@@ -59,7 +59,7 @@ export function rollPenalty(sim, phase, isPass) {
     const coachDiscipline = pen.on === 'OFF' ? (sim.offCoachDiscipline ?? 60) : (sim.defCoachDiscipline ?? 60);
     rate *= remap(coachDiscipline, 35, 95, 1.25, 0.75);
     // Crowd noise causes false starts on the road.
-    if (key === 'falseStart' && pen.on === 'OFF') rate *= 1 + (sim.crowdNoise ?? 0) * 1.4;
+    if (key === 'falseStart' && pen.on === 'OFF') rate *= 1 + (sim.crowdNoise ?? 0) * 2.4;
 
     if (rng.next() < rate) {
       return { ...pen, player: culprit, side: pen.on };

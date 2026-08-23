@@ -111,6 +111,9 @@ function makePassPlay(formationKey, conceptKey) {
     family: concept.family,
     tags: [...concept.tags, ...formation.tags],
   };
+  // Depth of the first read: what the play is actually trying to do.
+  const firstRead = progression[0];
+  play.primaryDepth = firstRead ? (ROUTES[routes[firstRead]]?.depth ?? 0) : 0;
   play.tags = situationTags(play);
   return play;
 }

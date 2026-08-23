@@ -14,8 +14,8 @@ import { RUN_CONCEPTS, GAPS } from '../data/runConcepts.js';
 import { clamp, remap, contest, round } from '../core/util.js';
 
 export const RUN_TUNING = {
-  gapYieldMin: -0.18,
-  gapYieldMax: 4.55,
+  gapYieldMin: -0.28,
+  gapYieldMax: 3.62,
   visionScale: 26,
   boxAdvantageYards: 1.15,   // yards per body of numbers advantage
   secondLevelScale: 24,
@@ -142,7 +142,10 @@ export function resolveRun(sim) {
     // The concept aims somewhere; other gaps are incidental.
     const designPenalty = gap === play.aimGap ? 0 : -6.5;
 
-    const win = contest(bg + designPenalty, dg, 15);
+    // A wide spread here on purpose: the gap between a good line and a bad one
+    // is real, but football is not deterministic and a 15-point spread made it
+    // nearly so. This is the main dial on league parity.
+    const win = contest(bg + designPenalty, dg, 21);
     let yield_ = remap(win, 0, 1, T.gapYieldMin, T.gapYieldMax);
     yield_ += numbers * T.boxAdvantageYards * (gap === play.aimGap ? 1 : 0.6);
     yield_ += blitzGuess * (gap === play.aimGap ? 1 : 0.4);
@@ -182,7 +185,7 @@ export function resolveRun(sim) {
       + carrier.eff('power', ctx) * 0.15 + carrier.eff('burst', ctx) * 0.15;
     const tackleSkill = fitter.eff('tackle', ctx) * 0.55 + fitter.eff('pursuit', ctx) * 0.25
       + fitter.eff('playRecognition', ctx) * 0.2;
-    const broke = rng.next() < contest(runnerSkill, tackleSkill, T.secondLevelScale) * 0.78;
+    const broke = rng.next() < contest(runnerSkill, tackleSkill, T.secondLevelScale) * 0.74;
     if (broke) {
       yards += rng.gaussClamped(4.6, 3.2, 0, 16);
       // --- Third level: now it is a footrace ---
