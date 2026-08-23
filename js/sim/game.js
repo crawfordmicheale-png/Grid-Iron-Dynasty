@@ -74,6 +74,7 @@ export class Game {
     this.possession = null;
     this.receivedSecondHalf = null;
     this.finished = false;
+    this.started = false;
     this.overtimePossessions = 0;
 
     // Travel: a west-coast club flying east for a one o'clock start is tired.
@@ -214,21 +215,71 @@ export class Game {
 
   // --- The main loop --------------------------------------------------------
 
-  run() {
-    // Coin toss: the winner defers, as almost everyone does.
+  /** Coin toss and opening kickoff. Safe to call more than once. */
+  begin() {
+    if (this.started) return;
+    this.started = true;
+    // The winner defers, as almost everyone does.
     const homeWins = this.rng.bool(0.5);
-    const firstReceiver = homeWins ? this.away.id : this.home.id;
     this.receivedSecondHalf = homeWins ? this.home.id : this.away.id;
-    this.emit({ type: 'kickoffStart', text: `${this.team(this.receivedSecondHalf).abbr} wins the toss and defers.` });
+    this.emit({
+      type: 'kickoffStart',
+      text: `${this.team(this.receivedSecondHalf).abbr} wins the toss and defers.`,
+    });
     this.kickoff(this.receivedSecondHalf === this.home.id ? this.home.id : this.away.id);
+  }
 
+  /**
+   * Is the game waiting on the user to call a play? True only when his offense
+   * has the ball on a down that is actually going to be run.
+   */
+  awaitingUserCall() {
+    if (this.finished || !this.userTeamId || !this.possession) return false;
+    if (this.possession.teamId !== this.userTeamId) return false;
+    if (this.possession.down !== 4) return true;
+    // On fourth down the staff decides first; only a "go" needs a play call.
+    const sit = this.situationFor(this.possession.teamId);
+    const offTeam = this.team(this.possession.teamId);
+    const decision = this.fourthDownPreview(offTeam, sit);
+    return decision.action === 'go';
+  }
+
+  fourthDownPreview(offTeam, sit) {
+    const kicker = offTeam.depthAt('K', 0);
+    return fourthDownDecision({
+      sit, kicker, ctx: this.contextFor(offTeam.id), coach: offTeam.staff?.HC,
+      offenseRating: offTeam.offenseRating,
+      fieldGoalChanceFn: (k, d, c) => fieldGoalChance(k, d, c, {
+        altitudeBonus: this.altitude.kickBonus,
+        pressure: this.clock.quarter >= 4 && Math.abs(sit.scoreDiff) <= 3,
+      }),
+    });
+  }
+
+  /**
+   * Advance the game by one play. `overridePlay` is the play a human coach
+   * called. Returns false once the game is over.
+   */
+  step(overridePlay = null) {
+    if (this.finished) return false;
+    this.begin();
+    this.runPlay(overridePlay);
+    if (this.clock.expired) this.handleQuarterEnd();
+    if (this.finished) this.finalize();
+    return !this.finished;
+  }
+
+  /** Run to the end, or until the user has to call something. */
+  run(opts = {}) {
+    this.begin();
     let guard = 0;
-    while (!this.finished && guard < 500) {
+    while (!this.finished && guard < 600) {
       guard += 1;
-      this.runPlay();
-      if (this.clock.expired) this.handleQuarterEnd();
+      if (opts.stopForUser && this.awaitingUserCall()) return this.result();
+      this.step();
+      if (opts.stopAfterPlay) break;
     }
-    this.finalize();
+    if (this.finished) this.finalize();
     return this.result();
   }
 
@@ -296,15 +347,16 @@ export class Game {
     }
   }
 
-  runPlay() {
+  runPlay(overridePlay = null) {
     const p = this.possession;
     if (!p) { this.finished = true; return; }
     const offTeam = this.team(p.teamId);
     const defTeam = this.opponent(p.teamId);
     const sit = this.situationFor(p.teamId);
 
-    // Fourth down: kick, punt, or go.
-    if (p.down === 4) {
+    // Fourth down: kick, punt, or go. A human coach who has already chosen a
+    // play has decided to go for it.
+    if (p.down === 4 && !overridePlay) {
       const decided = this.decideFourthDown(offTeam, defTeam, sit);
       if (decided) return;
     }
@@ -314,9 +366,9 @@ export class Game {
     const defBook = this.books[defTeam.id];
 
     // The human coach calls his own plays when a hook is installed.
-    let play;
+    let play = overridePlay;
     let defCall;
-    if (this.playCallHook && p.teamId === this.userTeamId) {
+    if (!play && this.playCallHook && p.teamId === this.userTeamId) {
       const called = this.playCallHook({ game: this, sit, book, offTeam, defTeam });
       play = called?.play;
     }

@@ -105,13 +105,20 @@ export class Team {
     const needs = [];
     for (const [pos, want] of Object.entries(ROSTER_BLUEPRINT)) {
       const have = counts[pos] ?? 0;
+      // Some positions have no nominal starter in the base look (fullback), so
+      // fall back to the best man on the roster rather than reading zero and
+      // reporting a crisis at a spot nobody starts.
       const starters = this.startersAt(pos);
-      const quality = starters.length ? mean(starters, (p) => p.overall()) : 0;
-      // Need is driven by both count and starter quality.
+      const pool = starters.length ? starters : this.playersAt(pos).slice(0, 1);
+      const quality = pool.length ? mean(pool, (p) => p.overall()) : 55;
       const countGap = Math.max(0, want - have);
-      const qualityGap = Math.max(0, 74 - quality) / 10;
-      const score = countGap * 2.2 + qualityGap;
-      if (score > 0.4) needs.push({ pos, score: round(score, 2), have, want, quality: Math.round(quality) });
+      // Measured against a good starter rather than an adequate one, so the
+      // list still ranks a strong roster's relative soft spots.
+      const qualityGap = Math.max(0, 82 - quality) / 7;
+      // A hole at left tackle is not the same as a hole at long snapper.
+      const importance = (UNIT_WEIGHT[pos] ?? 1) / 1.5;
+      const score = (countGap * 2.2 + qualityGap) * importance;
+      if (score > 0.15) needs.push({ pos, score: round(score, 2), have, want, quality: Math.round(quality) });
     }
     return needs.sort(byDesc((n) => n.score));
   }
