@@ -20,6 +20,21 @@ export const DEV_TIERS = {
   elite: { key: 'elite', name: 'Generational', mult: 2.4, weight: 2 },
 };
 
+// How strongly rating differences translate into on-field outcomes.
+//
+// Every phase of a snap reads ratings, and a stronger team is stronger in all
+// of them at once, so a linear reading compounds: a thirteen-point roster gap
+// produced a twenty-four point average margin, where the real league produces
+// about eleven. Compressing toward the league mean keeps a 95 clearly better
+// than a 70 while stopping the advantage from multiplying itself five times
+// over in a single play. This is the master dial on league parity.
+export const TALENT_MEAN = 70;
+export const TALENT_COMPRESSION = 0.46;
+
+export function compressRating(v) {
+  return TALENT_MEAN + (v - TALENT_MEAN) * TALENT_COMPRESSION;
+}
+
 // Age curve: fraction of physical prime available at a given age.
 // Peak 25-27, gentle rise before, real decline after 30.
 export function ageFactor(age, shift = 0) {
@@ -61,6 +76,7 @@ export class Player {
     this.snapCount = data.snapCount ?? 0;
 
     this.stats = data.stats ?? {};
+    this.playoffStats = data.playoffStats ?? {};
     this.careerStats = data.careerStats ?? {};
     this.accolades = data.accolades ?? [];
     this.history = data.history ?? [];
@@ -70,7 +86,8 @@ export class Player {
     this.scouted = data.scouted ?? null;
 
     this._ovrCache = null;
-    this._ovrKey = '';
+    this._potCache = null;
+    this._fitCache = null;
   }
 
   get name() {
@@ -118,13 +135,14 @@ export class Player {
 
   // --- Overall ---------------------------------------------------------------
 
+  // Cached, and invalidated explicitly by anything that changes a rating.
+  // This is called constantly -- depth charts, scheme fit, personnel selection,
+  // every play -- so it has to be close to free.
   overall(position = this.pos) {
-    const key = `${position}:${JSON.stringify(this.ratings).length}:${this.ratings.awareness}:${this.ratings.speed}`;
-    if (this._ovrCache !== null && this._ovrKey === key) return this._ovrCache;
-    const val = this.computeOverall(position);
-    this._ovrCache = val;
-    this._ovrKey = key;
-    return val;
+    if (position !== this.pos) return this.computeOverall(position);
+    if (this._ovrCache !== null) return this._ovrCache;
+    this._ovrCache = this.computeOverall(position);
+    return this._ovrCache;
   }
 
   computeOverall(position = this.pos) {
@@ -142,15 +160,20 @@ export class Player {
 
   // What he would be if he hit every ceiling.
   potentialOverall(position = this.pos) {
+    if (position === this.pos && this._potCache != null) return this._potCache;
     const def = POSITIONS[position];
     if (!def) return 40;
     let total = 0;
     for (const [attr, w] of Object.entries(def.weights)) total += this.cap(attr) * w;
-    return clamp(Math.round(total), 20, 99);
+    const val = clamp(Math.round(total), 20, 99);
+    if (position === this.pos) this._potCache = val;
+    return val;
   }
 
   invalidate() {
     this._ovrCache = null;
+    this._potCache = null;
+    this._fitCache = null;
   }
 
   // --- Effective rating ------------------------------------------------------
@@ -189,7 +212,7 @@ export class Player {
     // Morale, mild but real.
     v += remap(this.morale, 0, 100, -5, 3);
 
-    return clamp(v, 5, 99);
+    return clamp(compressRating(v), 5, 99);
   }
 
   // --- Condition -------------------------------------------------------------
@@ -256,7 +279,8 @@ export class Player {
       ratings: this.ratings, caps: this.caps, dev: this.dev, traits: this.traits,
       teamId: this.teamId, contract: this.contract, fatigue: round(this.fatigue, 1),
       morale: round(this.morale, 1), injury: this.injury, snapCount: this.snapCount,
-      stats: this.stats, careerStats: this.careerStats, accolades: this.accolades,
+      stats: this.stats, playoffStats: this.playoffStats,
+      careerStats: this.careerStats, accolades: this.accolades,
       history: this.history, scouted: this.scouted,
     };
   }
