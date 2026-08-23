@@ -244,7 +244,7 @@ export function generateLeague(opts = {}) {
 
   // Spread the league across a talent curve: a few real contenders, a few
   // genuinely bad clubs, most of them close enough that a good week matters.
-  const strengths = TEAM_DATA.map(() => rng.gauss(0, 3.5));
+  const strengths = TEAM_DATA.map(() => rng.gauss(0, 2.9));
 
   TEAM_DATA.forEach((data, i) => {
     const team = new Team({ id: data.id });

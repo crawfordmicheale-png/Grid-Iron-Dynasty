@@ -32,7 +32,7 @@ export function generateDraftClass(rng, league, size = 260) {
     // Expected draft slot drives the talent target.
     const slot = i / size;
     const target = clamp(
-      remap(slot, 0, 1, 82, 52) + rng.gauss(0, 4.5),
+      remap(slot, 0, 1, 79.5, 49) + rng.gauss(0, 4.5),
       40, 95,
     );
     const pos = rng.weighted(POSITION_KEYS, (k) => DRAFT_POSITION_WEIGHT[k] ?? 1);
@@ -42,7 +42,7 @@ export function generateDraftClass(rng, league, size = 260) {
     const dev = rng.weighted(Object.keys(DEV_TIERS), (k) => {
       const base = DEV_TIERS[k].weight;
       // The top of the class is likelier to hold real developmental talent.
-      return k === 'elite' || k === 'star' ? base * remap(slot, 0, 1, 3.2, 0.25) : base;
+      return k === 'elite' || k === 'star' ? base * remap(slot, 0, 1, 2.1, 0.2) : base;
     });
 
     const p = generatePlayer(rng, {

@@ -62,7 +62,7 @@ export function developPlayer(rng, player, team, opts = {}) {
     if (age > declineAge) {
       const years = age - declineAge;
       const severity = PHYSICAL_DECAY.has(attr) ? 1.35 : 0.55;
-      decline = rng.gaussClamped(years * 0.75 * severity / conditioning, 1.1, 0, 9);
+      decline = rng.gaussClamped(years * 0.90 * severity / conditioning, 1.2, 0, 10);
       // Toughness and awareness hold up; speed does not.
       if (MENTAL_GROWTH.has(attr)) decline *= 0.3;
     }
@@ -81,14 +81,14 @@ export function developPlayer(rng, player, team, opts = {}) {
 
   // Ceilings themselves can move: a young player who exceeds expectations gets
   // a higher ceiling, and one who stalls has it revised down.
-  if (age <= 25 && anyGrowth > 6 && rng.bool(0.22)) {
+  if (age <= 25 && anyGrowth > 6 && rng.bool(0.12)) {
     for (const attr of Object.keys(player.caps)) {
       player.caps[attr] = clamp(player.caps[attr] + rng.int(1, 4), player.ratings[attr], 99);
     }
     player.history.push({ year: opts.year, type: 'breakout' });
-  } else if (age <= 25 && anyGrowth < 1 && snaps > 200 && rng.bool(0.18)) {
+  } else if (age <= 25 && anyGrowth < 2 && rng.bool(0.30)) {
     for (const attr of Object.keys(player.caps)) {
-      player.caps[attr] = clamp(player.caps[attr] - rng.int(1, 3), player.ratings[attr], 99);
+      player.caps[attr] = clamp(player.caps[attr] - rng.int(1, 4), player.ratings[attr], 99);
     }
   }
 

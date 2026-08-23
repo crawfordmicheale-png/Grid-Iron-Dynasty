@@ -40,7 +40,7 @@ export const PASS_TUNING = {
   accSepRelief: 4.0,       // difficulty removed per yard of separation
   accSpread: 27,           // rating points that meaningfully move an accuracy check
   sackEscapeScale: 30,
-  yacScale: 0.76,
+  yacScale: 0.66,
   yacBreakScale: 0.30,
 };
 
@@ -608,7 +608,7 @@ function interceptionChance(sim, look, { dangerous, pressured }) {
   const { defender, route, separation } = look;
   const qb = sim.offense.QB;
   if (!defender) return 0.004;
-  let p = dangerous ? 0.050 : 0.013;
+  let p = dangerous ? 0.064 : 0.017;
   p *= route.risk ?? 1;
   p *= remap(defender.eff('ballHawk', ctx), 40, 95, 0.45, 2.0);
   p *= remap(separation, -1, 3.5, 1.9, 0.35);

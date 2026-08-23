@@ -18,7 +18,7 @@ export function fieldGoalChance(kicker, distance, ctx = {}, opts = {}) {
   const power = kicker.eff('kickPower', ctx);
   const accuracy = kicker.eff('kickAccuracy', ctx);
   // Every kicker has a range beyond which leg strength, not aim, is the limit.
-  const range = remap(power, 45, 99, 53.5, 69) + (opts.altitudeBonus ?? 0);
+  const range = remap(power, 45, 99, 54.5, 70) + (opts.altitudeBonus ?? 0);
 
   // Base curve on distance alone for a league-average leg.
   let p = logistic((range - distance) / 6.6);
