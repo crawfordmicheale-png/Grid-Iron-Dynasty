@@ -215,7 +215,20 @@ export function resolveRun(sim) {
     * (1 + ctx.weather * 0.7);
   const fumble = rng.next() < fumbleChance;
 
-  const tackler = chosen.defenders[0] ?? defense.lbs[0] ?? null;
+  // Tackle credit goes to somebody in the area, weighted by who is most likely
+  // to get there -- not always the same first name in the gap list.
+  // The men in the gap are most likely, but on a run that gets past the line
+  // the tackle is just as often made by somebody in pursuit.
+  const inGap = chosen.defenders;
+  const pursuing = yards > 3 ? [...defense.lbs, ...defense.safeties, ...defense.cbs] : defense.lbs;
+  const nearby = Array.from(new Set([...inGap, ...pursuing]));
+  // Weighted flat on purpose: who makes the tackle is mostly about who happens
+  // to be closest, not about who is the best tackler. A sharp weighting here
+  // funnels a season's worth of tackles to one linebacker.
+  const tackler = nearby.length
+    ? rng.weighted(nearby, (d) => (inGap.includes(d) ? 1.7 : 1.0)
+      * (1 + (d.eff('tackle', ctx) - 70) * 0.012))
+    : null;
   return {
     type: 'run',
     yards,

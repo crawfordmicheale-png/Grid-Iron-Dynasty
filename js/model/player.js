@@ -76,6 +76,7 @@ export class Player {
     this.snapCount = data.snapCount ?? 0;
 
     this.stats = data.stats ?? {};
+    this.playoffStats = data.playoffStats ?? {};
     this.careerStats = data.careerStats ?? {};
     this.accolades = data.accolades ?? [];
     this.history = data.history ?? [];
@@ -271,7 +272,8 @@ export class Player {
       ratings: this.ratings, caps: this.caps, dev: this.dev, traits: this.traits,
       teamId: this.teamId, contract: this.contract, fatigue: round(this.fatigue, 1),
       morale: round(this.morale, 1), injury: this.injury, snapCount: this.snapCount,
-      stats: this.stats, careerStats: this.careerStats, accolades: this.accolades,
+      stats: this.stats, playoffStats: this.playoffStats,
+      careerStats: this.careerStats, accolades: this.accolades,
       history: this.history, scouted: this.scouted,
     };
   }

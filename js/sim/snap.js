@@ -82,11 +82,11 @@ export function applyFatigue(sim, result) {
   const { offense, defense, altitudeMult = 1 } = sim;
   const intensity = result.type === 'run' || result.isRun ? 1.0 : 1.15;
   for (const p of offense.all) {
-    p.drainStamina(1.9 * (EXERTION[p.pos] ?? 1) * intensity);
+    p.drainStamina(3.1 * (EXERTION[p.pos] ?? 1) * intensity);
     p.snapCount += 1;
   }
   for (const p of defense.all) {
-    p.drainStamina(2.0 * (EXERTION[p.pos] ?? 1) * intensity * altitudeMult);
+    p.drainStamina(3.3 * (EXERTION[p.pos] ?? 1) * intensity * altitudeMult);
     p.snapCount += 1;
   }
 }

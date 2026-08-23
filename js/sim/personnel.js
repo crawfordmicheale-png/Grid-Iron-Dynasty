@@ -11,7 +11,7 @@
 import { FORMATIONS, formationSlots, PERSONNEL, SLOT_POSITION } from '../data/formations.js';
 import { FRONTS, COVERAGES, PRESSURES } from '../data/defense.js';
 import { schemeFit } from '../data/schemes.js';
-import { clamp, byDesc } from '../core/util.js';
+import { clamp, byDesc, remap } from '../core/util.js';
 
 // Archetypes that suit each slot. A slot receiver playing X is doing a job he
 // is not built for, and the engine should know it.
@@ -25,12 +25,26 @@ const SLOT_AFFINITY = {
   TE2: { inline: 5, move: 2, receiving: 0, yac: 0 },
   TE3: { inline: 6, move: 1, receiving: -2, yac: -2 },
   RB: { workhorse: 4, elusive: 3, bruiser: 3, speed: 2, receiving: 2 },
+  // (see ROTATION_BONUS below: backs come off the field far more than ratings alone suggest)
   FB: { lead: 4, hbrid: 3 },
 };
 
+// How much a tired player's value drops. This is what produces snap rotation:
+// once a starter is worn down, a fresh backup is genuinely the better option,
+// which is exactly the calculation a position coach makes on the sideline.
+const FATIGUE_PENALTY = 26;
+
+function freshness(player) {
+  return remap(player.fatigue, 45, 100, -FATIGUE_PENALTY, 0);
+}
+
+// Positions that share snaps by design rather than only when worn down.
+const ROTATION_BONUS = { RB: 2.4, FB: 1.6, WR: 1.25, TE: 1.2 };
+
 function slotScore(team, player, slot) {
   const affinity = SLOT_AFFINITY[slot]?.[player.archetype] ?? 0;
-  return team.depthValue(player) + affinity;
+  const rotation = freshness(player) * (ROTATION_BONUS[player.pos] ?? 1);
+  return team.depthValue(player) + affinity + rotation;
 }
 
 /**
@@ -43,9 +57,13 @@ export function offensivePersonnel(team, formationKey) {
 
   const qb = team.depthAt('QB', 0) ?? team.depthAt('QB', 0, { healthyOnly: false });
 
-  const tackles = team.depthChart.OT?.map((id) => team.findPlayer(id)).filter((p) => p?.available) ?? [];
-  const guards = team.depthChart.OG?.map((id) => team.findPlayer(id)).filter((p) => p?.available) ?? [];
-  const centers = team.depthChart.C?.map((id) => team.findPlayer(id)).filter((p) => p?.available) ?? [];
+  const olPool = (pos) => (team.depthChart[pos] ?? [])
+    .map((id) => team.findPlayer(id))
+    .filter((p) => p?.available)
+    .sort(byDesc((p) => team.depthValue(p) + freshness(p) * 0.4));
+  const tackles = olPool('OT');
+  const guards = olPool('OG');
+  const centers = olPool('C');
 
   // If a club is out of bodies at a spot, slide somebody over rather than
   // fielding ten men -- exactly what happens when a line gets banged up.
@@ -117,9 +135,13 @@ export function defensivePersonnel(team, call, offensePersonnelKey = '11') {
     dbCount = 11 - dlCount - lbCount;
   }
 
+  // Rotation weight by group: defensive linemen come off the field constantly,
+  // defensive backs almost never.
+  const ROTATION = { EDGE: 1.0, DT: 1.15, LB: 0.55, CB: 0.3, S: 0.3 };
   const take = (pos, n, used) => (team.depthChart[pos] ?? [])
     .map((id) => team.findPlayer(id))
     .filter((p) => p && p.available && !used.has(p.id))
+    .sort(byDesc((p) => team.depthValue(p) + freshness(p) * (ROTATION[pos] ?? 0.5)))
     .slice(0, n);
 
   const used = new Set();
@@ -181,8 +203,16 @@ export function assignCoverage(offense, defense, rng) {
     .filter(([, p]) => p)
     .map(([slot, player]) => ({ slot, player }));
 
-  // Rank receivers by how dangerous they are; that is who the defense accounts for.
-  const ranked = receivers.slice().sort(byDesc((r) => r.player.overall()));
+  // Real defenses mostly play sides and alignments rather than sending their
+  // best corner to follow the best receiver everywhere. Only a genuine shutdown
+  // corner travels, and only sometimes -- which is why a good corner does not
+  // hoover up every interception in the league.
+  const travels = defense.cbs[0]
+    && defense.cbs[0].rating('manCover') >= 85
+    && rng.bool(0.35);
+  const ranked = travels
+    ? receivers.slice().sort(byDesc((r) => r.player.overall()))
+    : rng.shuffle(receivers);
 
   const coverPool = [...defense.cbs, ...defense.safeties, ...defense.lbs];
   const assignments = {};
@@ -211,7 +241,32 @@ export function assignCoverage(offense, defense, rng) {
     }
   }
 
+  // Bracket coverage. A defense that is beaten repeatedly by one man starts
+  // rolling help to him: a safety over the top, a linebacker walling the
+  // inside. This is the real reason a dominant receiver's target share tops out
+  // instead of climbing forever -- and it is why the receiver across from him
+  // gets easier looks.
+  const brackets = {};
+  if (ranked.length > 1) {
+    const top = ranked.reduce((a, b) => (b.player.overall() > a.player.overall() ? b : a));
+    const others = ranked.filter((r) => r !== top);
+    const avgOthers = others.reduce((sum, r) => sum + r.player.overall(), 0) / others.length;
+    const edge = top.player.overall() - avgOthers;
+    if (edge > 4) {
+      // More spare defenders means more help available to send.
+      const spare = Math.max(0, coverage.deep + coverage.underneath - receivers.length);
+      // Deliberately modest. Bracket help should shave a star's production,
+      // not push him below the third receiver -- the defense is spending extra
+      // bodies on him precisely because he is still the man they fear.
+      const strength = clamp((edge - 4) * 0.06, 0, 0.9) * (0.55 + Math.min(spare, 3) * 0.22);
+      brackets[top.slot] = strength;
+      // Everyone else is a little more open for it.
+      const relief = strength / Math.max(1, others.length) * 0.5;
+      for (const r of others) brackets[r.slot] = -relief;
+    }
+  }
+
   // Zone defenders left over are help: they collapse on whatever is thrown near them.
   const help = coverPool.filter((d) => !Object.values(assignments).includes(d));
-  return { assignments, isMan, help, deepHelp: Math.max(0, coverage.deep) };
+  return { assignments, isMan, help, brackets, deepHelp: Math.max(0, coverage.deep) };
 }

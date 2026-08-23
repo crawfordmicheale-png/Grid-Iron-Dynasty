@@ -291,7 +291,7 @@ export class Game {
   // had the ball leaves defenses permanently gassed.
   recoverBetweenDrives() {
     for (const team of [this.home, this.away]) {
-      for (const p of team.roster) p.recover(26);
+      for (const p of team.roster) p.recover(17);
     }
   }
 

@@ -29,7 +29,7 @@ export const OFFENSIVE_SCHEMES = {
   AIR_RAID: {
     key: 'AIR_RAID', name: 'Air Raid', family: 'spread',
     desc: 'Four and five wide, no huddle, and a route concept for every coverage. Space is the scheme.',
-    basePassRate: 0.68, tempo: 0.85, aggression: 0.12, playActionRate: 0.12, shotgunRate: 0.92,
+    basePassRate: 0.64, tempo: 0.85, aggression: 0.12, playActionRate: 0.12, shotgunRate: 0.92,
     personnelBias: { '10': 1.8, '11': 1.3, '12': 0.4, '21': 0.2, '22': 0.1 },
     conceptBias: { quickGame: 1.4, mesh: 1.8, verticals: 1.6, westCoast: 1.0, deepShot: 1.3, screen: 1.2, playAction: 0.5 },
     runBias: { insideZone: 1.0, outsideZone: 0.9, power: 0.4, counter: 0.5, draw: 1.5, trap: 0.4 },

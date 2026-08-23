@@ -32,11 +32,25 @@ function conceptFitsFormation(concept, formation) {
 function completeRoutes(concept, formation) {
   const slots = formationSlots(formation);
   const routes = {};
+  // A back stays in to protect only when the call actually asks for it. Five
+  // linemen handle a four-man rush, so on an ordinary dropback he releases --
+  // which is why backs see roughly a fifth of all NFL targets.
+  const backMustBlock = concept.protection === 'maxProtect' || (concept.extraBlockers ?? 0) > 0;
   for (const slot of slots) {
     if (concept.routes[slot]) {
-      routes[slot] = concept.routes[slot];
-    } else if (slot === 'RB' || slot === 'FB') {
-      routes[slot] = 'block';
+      const assigned = concept.routes[slot];
+      if ((slot === 'RB' || slot === 'FB') && assigned === 'block' && !backMustBlock) {
+        routes[slot] = slot === 'RB' ? 'checkdown' : 'flat';
+        continue;
+      }
+      routes[slot] = assigned;
+    } else if (slot === 'RB') {
+      // A back who is not needed in protection releases as an outlet. Real
+      // offenses throw to their backs on about a fifth of all attempts; leaving
+      // him in to block by default starved that entirely.
+      routes[slot] = concept.protection === 'maxProtect' ? 'block' : 'checkdown';
+    } else if (slot === 'FB') {
+      routes[slot] = concept.protection === 'maxProtect' ? 'block' : 'flat';
     } else if (slot.startsWith('TE')) {
       routes[slot] = concept.protection === 'maxProtect' ? 'block' : 'checkdown';
     } else {
@@ -89,6 +103,24 @@ function makePassPlay(formationKey, conceptKey) {
   const concept = PASS_CONCEPTS[conceptKey];
   const routes = completeRoutes(concept, formation);
   const progression = concept.progression.filter((s) => routes[s] && !ROUTES[routes[s]].blocker);
+  // Any eligible receiver the concept did not name is still an option. The
+  // outlet goes in as the third read rather than the last: a quarterback checks
+  // it down when his first two are covered, he does not work through four
+  // downfield receivers first. Backs take about a fifth of all NFL targets and
+  // burying them at the end of every progression made that impossible.
+  for (const slot of ['RB', 'FB', 'TE2']) {
+    if (!routes[slot] || ROUTES[routes[slot]].blocker) continue;
+    const existing = progression.indexOf(slot);
+    if (existing >= 0) {
+      // Already a read, but buried at the bottom. Move it up.
+      if (existing > 2) {
+        progression.splice(existing, 1);
+        progression.splice(2, 0, slot);
+      }
+    } else {
+      progression.splice(Math.min(2, progression.length), 0, slot);
+    }
+  }
   playSeq += 1;
   const play = {
     id: `pass_${conceptKey}_${formationKey}`,

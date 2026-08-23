@@ -47,6 +47,10 @@ function slotTarget(rng, pos, slot, teamStrength) {
   // and a 99-overall stops meaning anything. Compressing the top instead keeps
   // the 85-92 band populated and makes a true 99 close to a once-a-decade player.
   if (target > 90) target = 90 + (target - 90) * 0.5;
+  // Starting quarterbacks have a floor. A 65-overall starter posts numbers no
+  // professional does, and because he touches every dropback he drags the whole
+  // passing offense down with him.
+  if (pos === 'QB' && slot === 0) target = Math.max(target, 73);
   return clamp(target, 42, 99);
 }
 

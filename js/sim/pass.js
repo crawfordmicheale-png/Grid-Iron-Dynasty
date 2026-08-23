@@ -19,10 +19,10 @@ import { clamp, remap, logistic, contest, round } from '../core/util.js';
 // --- Tuning constants -------------------------------------------------------
 // Named so the balance harness has one place to reach for.
 export const PASS_TUNING = {
-  baseHoldTime: 5.15,      // seconds an even blocker/rusher matchup lasts
+  baseHoldTime: 4.6,      // seconds an even blocker/rusher matchup lasts
   holdSpread: 0.32,        // lognormal sigma on that
   ratingScale: 58,         // rating points that double or halve the hold time
-  unblockedTime: 1.75,     // how long a free rusher takes to arrive
+  unblockedTime: 1.6,      // how long an unblocked edge rusher takes to arrive
   readTimeBase: 0.35,      // seconds per progression step at average PRG
   sightAdjust: 0.22,       // time after the break before the QB can see it
   sepThreshold: 0.55,      // yards of separation the QB wants before throwing
@@ -35,12 +35,12 @@ export const PASS_TUNING = {
   pressureLag: 0.35,       // delay between a rusher winning and the QB feeling it
   depthThreshold: 0.098,   // extra separation demanded per yard of route depth
   urgencyDecay: 0.78,      // how fast he stops being picky once the play is late
-  accBase: 54,             // difficulty floor for an accuracy check
+  accBase: 42,             // difficulty floor for an accuracy check
   accDepthCost: 1.70,      // difficulty added per yard of air
   accSepRelief: 4.0,       // difficulty removed per yard of separation
-  accSpread: 15,           // rating points that meaningfully move an accuracy check
+  accSpread: 27,           // rating points that meaningfully move an accuracy check
   sackEscapeScale: 30,
-  yacScale: 0.64,
+  yacScale: 0.76,
   yacBreakScale: 0.30,
 };
 
@@ -102,7 +102,11 @@ export function buildProtection(sim) {
 
     let winTime;
     if (!blocker) {
-      winTime = T.unblockedTime * rng.float(0.8, 1.25);
+      // Distance to the quarterback depends on where the rusher lined up.
+      const depthMult = { EDGE: 1.0, DT: 1.05, LB: 1.34, S: 1.62, CB: 1.55 }[rusher.player.pos] ?? 1.3;
+      // Even unblocked, a rusher with no pass-rush ability is easier to avoid.
+      const skillMult = remap(rushSkill(rusher.player, ctx), 40, 90, 1.18, 0.9);
+      winTime = T.unblockedTime * depthMult * skillMult * rng.float(0.82, 1.22);
     } else {
       const rs = rushSkill(rusher.player, ctx) + (rusher.blitzer ? 4 : 0)
         + (defense.front.passRush - 1) * 18;
@@ -195,6 +199,10 @@ export function computeSeparation(sim, slot, receiver, defender) {
   // A blitz means fewer defenders in coverage.
   sep += (defense.pressure.coverageCost ?? 0) * 0.24;
 
+  // Bracket help rolled to the offense's best receiver, and the corresponding
+  // relief for everybody else.
+  sep -= sim.coverage?.brackets?.[slot] ?? 0;
+
   // Physical mismatches: a linebacker on a receiver, a corner on a big tight end.
   if (defender) {
     if (defender.pos === 'LB' && (receiver.pos === 'WR')) sep += 1.5;
@@ -268,6 +276,9 @@ export function resolvePass(sim) {
   // What he is willing to throw into. Aggression comes from the coach, the
   // quarterback's own temperament, and the situation.
   let threshold = T.sepThreshold;
+  // A blitz he saw coming is a blitz he has an answer for: the ball comes out
+  // fast to the hot receiver rather than waiting on the concept.
+  if (protection.detected && defense.pressure.extraRushers > 0) threshold -= 0.5;
   threshold -= (sim.aggression ?? 0) * 0.55;
   threshold -= qb.traitSum('aggression') * 2.4;
   threshold -= (sim.desperation ?? 0) * 0.9;
@@ -402,7 +413,14 @@ function underPressure(sim, protection, looks, t, readsMade, threshold) {
 function sackResult(sim, protection, reason, t = null) {
   const { rng, offense, ctx } = sim;
   const qb = offense.QB;
-  const sacker = protection.firstRusher?.rusher ?? null;
+  // Several rushers are usually converging at once; the sack is credited to one
+  // of the men who actually beat his block, not always the very first.
+  const arrived = protection.matchups.filter(
+    (m) => m.winTime <= protection.pressureTime + 0.55,
+  );
+  const sacker = arrived.length
+    ? rng.weighted(arrived, (m) => 1 / Math.max(0.35, m.winTime - protection.pressureTime + 0.5)).rusher
+    : protection.firstRusher?.rusher ?? null;
   // Sack yardage: usually short, occasionally a disaster.
   const loss = Math.round(clamp(rng.gaussClamped(6.4, 3.2, 0, 18), 1, 20));
   const fumbleChance = 0.075 * qb.traitMult('fumbleMult')
@@ -549,7 +567,12 @@ function attemptCatch(sim, look, { pressured, onTarget }) {
   const catchChance = clamp(logistic(logit) / dropMult ** 0.4, 0.02, 0.97);
 
   if (rng.next() < catchChance) {
-    return { caught: true, contested: contestedBall, tackler: defender };
+    // Whoever is closest usually makes the tackle, but help arrives too.
+    const help = sim.defense.all.filter((d) => d !== defender);
+    const tackler = defender && rng.bool(0.44)
+      ? defender
+      : rng.weighted(help, (d) => d.eff('pursuit', ctx) * 0.5 + d.eff('speed', ctx) * 0.5) ?? defender;
+    return { caught: true, contested: contestedBall, tackler };
   }
 
   // Not caught: was it a drop, or did the defender make a play?
@@ -582,12 +605,12 @@ function interceptionChance(sim, look, { dangerous, pressured }) {
   const { defender, route, separation } = look;
   const qb = sim.offense.QB;
   if (!defender) return 0.004;
-  let p = dangerous ? 0.061 : 0.015;
+  let p = dangerous ? 0.050 : 0.013;
   p *= route.risk ?? 1;
   p *= remap(defender.eff('ballHawk', ctx), 40, 95, 0.45, 2.0);
   p *= remap(separation, -1, 3.5, 1.9, 0.35);
   p *= qb.traitMult('intMult');
-  p *= remap(qb.eff('decision', ctx), 40, 95, 1.5, 0.6);
+  p *= remap(qb.eff('decision', ctx), 40, 95, 1.32, 0.72);
   if (pressured) p *= 1.35;
   if (defender.hasTrait('gambler')) p *= 1.3;
   return clamp(p, 0, 0.5);
@@ -595,7 +618,14 @@ function interceptionChance(sim, look, { dangerous, pressured }) {
 
 function interception(sim, look, result) {
   const { rng, ctx } = sim;
-  const { defender, receiver } = look;
+  const { receiver } = look;
+  // The nearest defender usually makes the play, but in zone the ball is often
+  // picked off by somebody breaking on it from elsewhere.
+  const nearest = look.defender;
+  const help = sim.defense.all.filter((d) => d !== nearest && ['CB', 'S', 'LB'].includes(d.pos));
+  const defender = nearest && rng.bool(0.62)
+    ? nearest
+    : (rng.weighted(help, (d) => d.eff('ballHawk', ctx) * 0.6 + d.eff('zoneCover', ctx) * 0.4) ?? nearest);
   // Return yards: mostly short, occasionally house money.
   const ret = Math.round(clamp(
     rng.gaussClamped(remap(defender?.eff('speed', ctx) ?? 80, 70, 99, 6, 16), 9, 0, 70), 0, 90,

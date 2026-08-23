@@ -40,7 +40,7 @@ export const PASS_CONCEPTS = {
     family: 'quickGame', dropDepth: 3, timing: 1.6, protection: 'quick',
     desc: 'Option route inside, flat outside. The underneath defender is wrong either way.',
     routes: { TE: 'stick', SLOT: 'flat', X: 'go', Z: 'hitch', RB: 'checkdown' },
-    progression: ['TE', 'SLOT', 'Z', 'RB'],
+    progression: ['TE', 'Z', 'SLOT', 'RB'],
     tags: ['quick', 'zoneBeater'],
   }),
   spotConcept: C('spotConcept', 'Spot', {
@@ -70,7 +70,7 @@ export const PASS_CONCEPTS = {
     family: 'westCoast', dropDepth: 5, timing: 2.2,
     desc: 'Shallow underneath with a dig behind it. Man coverage has to chase across the field.',
     routes: { X: 'drag', SLOT: 'dig', Z: 'comeback', TE: 'checkdown', RB: 'block' },
-    progression: ['X', 'SLOT', 'Z', 'TE'],
+    progression: ['X', 'Z', 'SLOT', 'TE'],
     tags: ['manBeater', 'intermediate'],
   }),
   yOption: C('yOption', 'Y-Option', {
@@ -92,7 +92,7 @@ export const PASS_CONCEPTS = {
     family: 'westCoast', dropDepth: 5, timing: 2.1,
     desc: 'Sit down in the soft spot at nine yards. The most reliable throw in football against zone.',
     routes: { X: 'hook', Z: 'hook', SLOT: 'quickOut', TE: 'checkdown', RB: 'swing' },
-    progression: ['X', 'Z', 'SLOT', 'RB'],
+    progression: ['X', 'SLOT', 'Z', 'RB'],
     tags: ['zoneBeater', 'safe'],
   }),
   quickOuts: C('quickOuts', 'Quick Outs', {
@@ -137,21 +137,21 @@ export const PASS_CONCEPTS = {
     family: 'westCoast', dropDepth: 5, timing: 2.2,
     desc: 'Every inside receiver reads leverage and breaks away from it. Almost impossible to jump.',
     routes: { SLOT: 'pivot', TE: 'stick', X: 'hook', Z: 'hook', RB: 'swing' },
-    progression: ['SLOT', 'X', 'TE', 'RB'],
+    progression: ['SLOT', 'Z', 'TE', 'RB'],
     tags: ['manBeater', 'zoneBeater', 'safe'],
   }),
   ohio: C('ohio', 'Ohio', {
     family: 'quickGame', dropDepth: 3, timing: 1.9, protection: 'quick',
     desc: 'Quick out and a pivot underneath. Gets the ball out on rhythm against pressure.',
     routes: { X: 'quickOut', SLOT: 'pivot', Z: 'slant', TE: 'stick', RB: 'checkdown' },
-    progression: ['X', 'SLOT', 'TE', 'RB'],
+    progression: ['SLOT', 'Z', 'TE', 'RB'],
     tags: ['quick', 'blitzBeater', 'zoneBeater'],
   }),
   hankConcept: C('hankConcept', 'Hank', {
     family: 'westCoast', dropDepth: 5, timing: 2.2,
     desc: 'Hooks outside, back releases late underneath. The staple third-and-six answer.',
     routes: { X: 'hook', Z: 'hook', SLOT: 'quickOut', TE: 'stick', RB: 'angle' },
-    progression: ['X', 'SLOT', 'Z', 'RB'],
+    progression: ['SLOT', 'Z', 'X', 'RB'],
     tags: ['zoneBeater', 'safe', 'thirdAndShort'],
   }),
 
@@ -160,7 +160,7 @@ export const PASS_CONCEPTS = {
     family: 'verticals', dropDepth: 7, timing: 3.0,
     desc: 'Four go routes divide the field. Single-high has four to cover with three.',
     routes: { X: 'go', Z: 'go', SLOT: 'seam', SLOT2: 'seam', RB: 'checkdown' },
-    progression: ['SLOT', 'SLOT2', 'X', 'Z', 'RB'],
+    progression: ['Z', 'SLOT', 'X', 'SLOT2', 'RB'],
     tags: ['deep', 'cover3Beater'],
   }),
   vertsTE: C('vertsTE', 'Verts Y-Seam', {
@@ -190,7 +190,7 @@ export const PASS_CONCEPTS = {
     family: 'quickGame', dropDepth: 5, timing: 2.5,
     desc: 'Hitch under a corner route. The classic Cover 2 killer -- the corner is wrong either way.',
     routes: { X: 'hitch', Z: 'hitch', SLOT: 'corner', TE: 'corner', RB: 'checkdown' },
-    progression: ['SLOT', 'X', 'TE', 'RB'],
+    progression: ['SLOT', 'Z', 'TE', 'RB'],
     tags: ['cover2Beater', 'zoneBeater'],
   }),
   flood: C('flood', 'Sail (Flood)', {
@@ -204,7 +204,7 @@ export const PASS_CONCEPTS = {
     family: 'westCoast', dropDepth: 5, timing: 2.4,
     desc: 'Two in-breaking routes at different depths in the same window. Pick a level.',
     routes: { X: 'dig', SLOT: 'pivot', Z: 'comeback', TE: 'checkdown', RB: 'block' },
-    progression: ['SLOT', 'X', 'Z', 'TE'],
+    progression: ['Z', 'X', 'SLOT', 'TE'],
     tags: ['zoneBeater', 'intermediate'],
   }),
 
@@ -213,7 +213,7 @@ export const PASS_CONCEPTS = {
     family: 'deepShot', dropDepth: 7, timing: 3.2,
     desc: 'Inside receiver takes the post, outside runs the wheel underneath him. Man coverage gets crossed up.',
     routes: { SLOT: 'post', X: 'wheel', Z: 'comeback', TE: 'block', RB: 'block' },
-    progression: ['X', 'SLOT', 'Z'],
+    progression: ['SLOT', 'X', 'Z'],
     tags: ['deep', 'shot', 'manBeater'],
   }),
   doublePost: C('doublePost', 'Double Post', {
@@ -257,7 +257,7 @@ export const PASS_CONCEPTS = {
     family: 'playAction', dropDepth: 7, timing: 3.0, playAction: true,
     desc: 'Linebackers bite on the run fake and two crossers run through where they were.',
     routes: { X: 'cross', Z: 'cross', TE: 'seam', SLOT: 'checkdown', RB: 'block' },
-    progression: ['X', 'Z', 'TE', 'SLOT'],
+    progression: ['Z', 'X', 'TE', 'SLOT'],
     tags: ['playAction', 'intermediate'],
   }),
   paShot: C('paShot', 'PA Deep Shot', {
@@ -265,7 +265,7 @@ export const PASS_CONCEPTS = {
     protection: 'maxProtect', extraBlockers: 1,
     desc: 'Sell it hard, keep everyone in to block, and take one swing at the safety.',
     routes: { X: 'post', Z: 'go', TE: 'block', RB: 'block' },
-    progression: ['X', 'Z'],
+    progression: ['Z', 'X'],
     tags: ['playAction', 'deep', 'shot', 'maxProtect'],
   }),
   paYSail: C('paYSail', 'PA Y-Sail', {
