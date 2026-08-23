@@ -203,6 +203,9 @@ export function computeSeparation(sim, slot, receiver, defender) {
   // relief for everybody else.
   sep -= sim.coverage?.brackets?.[slot] ?? 0;
 
+  // How well this play has been practised. Timing routes live or die on it.
+  sep += ((sim.execution ?? 1) - 1) * 7.5;
+
   // Physical mismatches: a linebacker on a receiver, a corner on a big tight end.
   if (defender) {
     if (defender.pos === 'LB' && (receiver.pos === 'WR')) sep += 1.5;

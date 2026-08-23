@@ -8,6 +8,7 @@ import { selectAwards, statLeaders, recordAccolades } from './awards.js';
 import { playbookForScheme, defensivePlaybookForScheme } from '../data/playbook.js';
 import { PHASES } from '../model/league.js';
 import { CONFERENCES, DIVISIONS, CHAMPIONSHIP_NAME } from '../data/teams.js';
+import { runPracticeWeek, autoPlan, suggestFocusGroups, createGameplan } from './practice.js';
 import { clamp, remap } from '../core/util.js';
 
 export class Season {
@@ -95,9 +96,40 @@ export class Season {
     return result;
   }
 
+  /**
+   * The practice week that precedes the games. Every club that is not being
+   * coached by the user prepares itself; the user's own week comes from the
+   * practice screen.
+   */
+  prepareWeek(week = this.league.week, opts = {}) {
+    const lg = this.league;
+    const reports = {};
+    for (const team of lg.allTeams()) {
+      if (opts.userTeamId && team.id === opts.userTeamId) continue;
+      if (!team.gameplan) team.gameplan = createGameplan();
+      const books = this.booksFor(team);
+      // Coordinators install the slice of the book they actually mean to call.
+      const installList = [...books.off.all]
+        .sort((a, b) => (b.tags.length - a.tags.length))
+        .slice(0, 34)
+        .map((p) => p.id);
+      reports[team.id] = runPracticeWeek({
+        rng: lg.rng,
+        team,
+        plan: autoPlan(lg.rng, team),
+        playbook: books.off,
+        installList,
+        focusGroups: suggestFocusGroups(team).slice(0, 2).map((g) => g.group),
+        league: lg,
+      });
+    }
+    return reports;
+  }
+
   /** Play every unplayed game in a week. */
   playWeek(week = this.league.week, hooks = {}) {
     const lg = this.league;
+    if (!hooks.skipPractice) this.prepareWeek(week, hooks);
     const games = lg.gamesInWeek(week).filter((g) => !g.played);
     const results = [];
     for (const game of games) {

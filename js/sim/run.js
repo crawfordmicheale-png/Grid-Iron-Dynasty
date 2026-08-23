@@ -133,6 +133,8 @@ export function resolveRun(sim) {
 
     // Formation strength at this gap, and the front's strength there.
     bg *= play.gapStrength?.[gap] ?? 1;
+    // A run concept the line has repped all week fits up better.
+    bg *= 1 + ((sim.execution ?? 1) - 1) * 0.9;
     dg *= defense.front.gapStrength[gap] ?? 1;
     // Double teams at the point of attack.
     if (gap === play.aimGap) {

@@ -13,6 +13,7 @@ import {
 import { buildContext, generateWeather, crowdNoise, altitudeEffect } from './context.js';
 import { playbookForScheme, defensivePlaybookForScheme } from '../data/playbook.js';
 import { travelMiles } from '../data/teams.js';
+import { familiarityMultiplier, situationalBonus } from '../season/practice.js';
 import { clamp, remap, round, fieldPosName, downDistance } from '../core/util.js';
 
 export const TIMEOUTS_PER_HALF = 3;
@@ -341,6 +342,10 @@ export class Game {
       aggression: (offTeam.staff?.OC?.aggression ?? 0) + (offTeam._halftimeEdge ?? 0) * 4,
       desperation: sit.hurry ? 0.6 : 0,
       runGameCredibility: this.runCredibility(offTeam.id),
+      // How well this specific play has been practised this week.
+      execution: familiarityMultiplier(offTeam.gameplan, play.id)
+        + situationalBonus(offTeam.gameplan, sit.absolute >= 80 ? 'redZone'
+          : sit.hurry ? 'twoMinute' : sit.distance <= 2 ? 'shortYardage' : null),
       injuryPreventionMult: remap(offTeam.staff?.TRAINER?.attr('injuryPrevention') ?? 55, 35, 95, 1.25, 0.7),
       altitudeMult: p.teamId === this.away.id ? this.altitude.fatigueMult * (1 + this.travelPenalty * 0.06) : 1,
     });

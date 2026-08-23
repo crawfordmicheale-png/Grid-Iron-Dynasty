@@ -271,6 +271,9 @@ export const DEF_SCHEME_KEYS = Object.keys(DEFENSIVE_SCHEMES);
 export function schemeFit(player, scheme) {
   const table = scheme?.fit?.[player.pos];
   if (!table) return 0;
+  // Cached per scheme: this is called for every player on every personnel
+  // decision, which is several thousand times a game.
+  if (player._fitCache && player._fitCache.key === scheme.key) return player._fitCache.value;
   let wsum = 0;
   let acc = 0;
   for (const [attr, w] of Object.entries(table)) {
@@ -279,7 +282,9 @@ export function schemeFit(player, scheme) {
   }
   if (wsum <= 0) return 0;
   const shaped = acc / wsum;
-  return clamp((shaped - player.overall()) * 0.55, -9, 9);
+  const value = clamp((shaped - player.overall()) * 0.55, -9, 9);
+  player._fitCache = { key: scheme.key, value };
+  return value;
 }
 
 // Human-readable grade for the roster screen.

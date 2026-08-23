@@ -86,7 +86,8 @@ export class Player {
     this.scouted = data.scouted ?? null;
 
     this._ovrCache = null;
-    this._ovrKey = '';
+    this._potCache = null;
+    this._fitCache = null;
   }
 
   get name() {
@@ -134,13 +135,14 @@ export class Player {
 
   // --- Overall ---------------------------------------------------------------
 
+  // Cached, and invalidated explicitly by anything that changes a rating.
+  // This is called constantly -- depth charts, scheme fit, personnel selection,
+  // every play -- so it has to be close to free.
   overall(position = this.pos) {
-    const key = `${position}:${JSON.stringify(this.ratings).length}:${this.ratings.awareness}:${this.ratings.speed}`;
-    if (this._ovrCache !== null && this._ovrKey === key) return this._ovrCache;
-    const val = this.computeOverall(position);
-    this._ovrCache = val;
-    this._ovrKey = key;
-    return val;
+    if (position !== this.pos) return this.computeOverall(position);
+    if (this._ovrCache !== null) return this._ovrCache;
+    this._ovrCache = this.computeOverall(position);
+    return this._ovrCache;
   }
 
   computeOverall(position = this.pos) {
@@ -158,15 +160,20 @@ export class Player {
 
   // What he would be if he hit every ceiling.
   potentialOverall(position = this.pos) {
+    if (position === this.pos && this._potCache != null) return this._potCache;
     const def = POSITIONS[position];
     if (!def) return 40;
     let total = 0;
     for (const [attr, w] of Object.entries(def.weights)) total += this.cap(attr) * w;
-    return clamp(Math.round(total), 20, 99);
+    const val = clamp(Math.round(total), 20, 99);
+    if (position === this.pos) this._potCache = val;
+    return val;
   }
 
   invalidate() {
     this._ovrCache = null;
+    this._potCache = null;
+    this._fitCache = null;
   }
 
   // --- Effective rating ------------------------------------------------------
