@@ -53,7 +53,7 @@ export const PASS_CONCEPTS = {
   hitches: C('hitches', 'All Hitches', {
     family: 'quickGame', dropDepth: 3, timing: 1.6, protection: 'quick',
     desc: 'Take the cushion they are giving you. Nothing fancy, nothing risky.',
-    routes: { X: 'hitch', Z: 'hitch', SLOT: 'hitch', RB: 'checkdown' },
+    routes: { X: 'hitch', Z: 'hook', SLOT: 'hitch', RB: 'checkdown' },
     progression: ['X', 'Z', 'SLOT', 'RB'],
     tags: ['quick', 'safe', 'zoneBeater'],
   }),
@@ -62,7 +62,7 @@ export const PASS_CONCEPTS = {
   curlFlat: C('curlFlat', 'Curl-Flat', {
     family: 'westCoast', dropDepth: 5, timing: 2.3,
     desc: 'Puts the flat defender in a bind: jump the flat and the curl is open behind him.',
-    routes: { X: 'curl', SLOT: 'flat', Z: 'curl', TE: 'checkdown', RB: 'block' },
+    routes: { X: 'curl', SLOT: 'flat', Z: 'hook', TE: 'checkdown', RB: 'block' },
     progression: ['X', 'SLOT', 'Z', 'TE'],
     tags: ['zoneBeater', 'cover3Beater'],
   }),
@@ -76,7 +76,7 @@ export const PASS_CONCEPTS = {
   yOption: C('yOption', 'Y-Option', {
     family: 'westCoast', dropDepth: 5, timing: 2.1,
     desc: 'The tight end reads leverage and breaks whichever way the defender is not.',
-    routes: { TE: 'stick', X: 'curl', Z: 'out', SLOT: 'drag', RB: 'swing' },
+    routes: { TE: 'stick', X: 'hook', Z: 'quickOut', SLOT: 'drag', RB: 'swing' },
     progression: ['TE', 'SLOT', 'X', 'RB'],
     tags: ['zoneBeater', 'safe'],
   }),
@@ -86,6 +86,21 @@ export const PASS_CONCEPTS = {
     routes: { RB: 'angle', X: 'go', Z: 'dig', SLOT: 'drag', TE: 'block' },
     progression: ['RB', 'SLOT', 'Z', 'X'],
     tags: ['manBeater', 'checkdown'],
+  }),
+
+  hookCurl: C('hookCurl', 'Hook-Curl', {
+    family: 'westCoast', dropDepth: 5, timing: 2.1,
+    desc: 'Sit down in the soft spot at nine yards. The most reliable throw in football against zone.',
+    routes: { X: 'hook', Z: 'hook', SLOT: 'quickOut', TE: 'checkdown', RB: 'swing' },
+    progression: ['X', 'Z', 'SLOT', 'RB'],
+    tags: ['zoneBeater', 'safe'],
+  }),
+  quickOuts: C('quickOuts', 'Quick Outs', {
+    family: 'quickGame', dropDepth: 3, timing: 1.8, protection: 'quick',
+    desc: 'Get to the sideline and stop the clock. The two-minute staple.',
+    routes: { X: 'quickOut', Z: 'quickOut', SLOT: 'pivot', RB: 'checkdown' },
+    progression: ['X', 'Z', 'SLOT', 'RB'],
+    tags: ['quick', 'sideline', 'twoMinute'],
   }),
 
   // ---------------- Mesh family ----------------
@@ -99,7 +114,7 @@ export const PASS_CONCEPTS = {
   meshSit: C('meshSit', 'Mesh Sit', {
     family: 'mesh', dropDepth: 5, timing: 2.4,
     desc: 'Same rub, but the crossers sit down in the zone holes instead of running through.',
-    routes: { X: 'drag', Z: 'drag', SLOT: 'curl', TE: 'seam', RB: 'checkdown' },
+    routes: { X: 'drag', Z: 'drag', SLOT: 'hook', TE: 'seam', RB: 'checkdown' },
     progression: ['SLOT', 'X', 'Z', 'RB'],
     tags: ['zoneBeater', 'rub'],
   }),
@@ -159,7 +174,7 @@ export const PASS_CONCEPTS = {
   levels: C('levels', 'Levels', {
     family: 'westCoast', dropDepth: 5, timing: 2.4,
     desc: 'Two in-breaking routes at different depths in the same window. Pick a level.',
-    routes: { X: 'dig', SLOT: 'drag', Z: 'comeback', TE: 'checkdown', RB: 'block' },
+    routes: { X: 'dig', SLOT: 'pivot', Z: 'comeback', TE: 'checkdown', RB: 'block' },
     progression: ['SLOT', 'X', 'Z', 'TE'],
     tags: ['zoneBeater', 'intermediate'],
   }),
@@ -189,7 +204,7 @@ export const PASS_CONCEPTS = {
   fadeOut: C('fadeOut', 'Fade-Out', {
     family: 'deepShot', dropDepth: 5, timing: 2.7,
     desc: 'Isolation on the outside. If you like your receiver against their corner, take it.',
-    routes: { X: 'fade', Z: 'out', SLOT: 'drag', TE: 'checkdown', RB: 'block' },
+    routes: { X: 'fade', Z: 'quickOut', SLOT: 'pivot', TE: 'checkdown', RB: 'block' },
     progression: ['X', 'Z', 'SLOT', 'TE'],
     tags: ['deep', 'iso', 'contested'],
   }),

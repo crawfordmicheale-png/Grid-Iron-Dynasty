@@ -27,7 +27,7 @@ export const ROUTES = {
     vs: { cover0: 4, cover1: 3, cover2: 1, cover2man: 2, cover3: 1, cover4: 3, cover6: 2, tampa2: 1 },
   }),
   hitch: R('hitch', 'Hitch', {
-    depth: 6, breakTime: 1.6, band: 'quick', type: 'back', yacBase: 2.6, risk: 0.6,
+    depth: 7, breakTime: 1.7, band: 'quick', type: 'back', yacBase: 2.6, risk: 0.6,
     vsPress: -2, manBonus: -2, zoneBonus: 3,
     vs: { cover0: -1, cover1: -2, cover2: 2, cover2man: -1, cover3: 3, cover4: 2, cover6: 2, tampa2: 3 },
   }),
@@ -54,7 +54,7 @@ export const ROUTES = {
     vs: { cover0: 5, cover1: 4, cover2: 1, cover2man: 4, cover3: 1, cover4: 2, cover6: 2, tampa2: 0 },
   }),
   stick: R('stick', 'Stick', {
-    depth: 6, breakTime: 1.6, band: 'short', type: 'option', yacBase: 3.4, risk: 0.6, option: true,
+    depth: 7, breakTime: 1.7, band: 'short', type: 'option', yacBase: 3.4, risk: 0.6, option: true,
     vsPress: -1, manBonus: 1, zoneBonus: 3,
     vs: { cover0: 2, cover1: 1, cover2: 2, cover2man: 1, cover3: 3, cover4: 3, cover6: 3, tampa2: 3 },
   }),
@@ -74,9 +74,25 @@ export const ROUTES = {
     vs: { cover0: 4, cover1: 4, cover2: -1, cover2man: 4, cover3: 0, cover4: 1, cover6: 0, tampa2: -1 },
   }),
 
+  quickOut: R('quickOut', 'Speed Out', {
+    depth: 8, breakTime: 1.9, band: 'short', type: 'out', yacBase: 3.0, risk: 1.1,
+    vsPress: -2, manBonus: 1, zoneBonus: 1,
+    vs: { cover0: 2, cover1: 1, cover2: -2, cover2man: -1, cover3: 3, cover4: 0, cover6: 1, tampa2: -1 },
+  }),
+  hook: R('hook', 'Hook', {
+    depth: 9, breakTime: 2.0, band: 'short', type: 'back', yacBase: 3.2, risk: 0.7,
+    vsPress: -1, manBonus: -1, zoneBonus: 4,
+    vs: { cover0: 0, cover1: -1, cover2: 3, cover2man: 0, cover3: 4, cover4: 3, cover6: 3, tampa2: 3 },
+  }),
+  pivot: R('pivot', 'Pivot', {
+    depth: 8, breakTime: 2.0, band: 'short', type: 'in', yacBase: 4.8, risk: 0.9,
+    vsPress: 1, manBonus: 4, zoneBonus: 0,
+    vs: { cover0: 4, cover1: 4, cover2: 1, cover2man: 3, cover3: 1, cover4: 2, cover6: 1, tampa2: 0 },
+  }),
+
   // --- Intermediate ---
   out: R('out', 'Out', {
-    depth: 11, breakTime: 2.3, band: 'intermediate', type: 'out', yacBase: 2.4, risk: 1.5,
+    depth: 10, breakTime: 2.2, band: 'intermediate', type: 'out', yacBase: 2.4, risk: 1.5,
     vsPress: -2, manBonus: 0, zoneBonus: 1,
     vs: { cover0: 1, cover1: 0, cover2: -3, cover2man: -3, cover3: 3, cover4: -1, cover6: 0, tampa2: -2 },
   }),
