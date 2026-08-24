@@ -1,6 +1,6 @@
 // Game day. You call the plays; the staff handles everything else.
 
-import { h, btn, chip, empty, toast, mount, modal, closeModal, table } from '../dom.js';
+import { h, btn, chip, empty, modal, closeModal } from '../dom.js';
 import { registerScreen, state, go, refresh, userTeam } from '../app.js';
 import { Game } from '../../sim/game.js';
 import { FieldRenderer } from '../field.js';
@@ -10,7 +10,6 @@ import { PASS_CONCEPTS } from '../../data/passConcepts.js';
 import { RUN_CONCEPTS } from '../../data/runConcepts.js';
 import { FORMATIONS, PERSONNEL } from '../../data/formations.js';
 import { REGULAR_SEASON_WEEKS } from '../../season/schedule.js';
-import { PHASES } from '../../model/league.js';
 import { clockString, downDistance, fieldPosName, round } from '../../core/util.js';
 
 let renderer = null;

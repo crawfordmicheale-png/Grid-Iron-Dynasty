@@ -10,7 +10,6 @@
 
 import { FORMATIONS, formationSlots, PERSONNEL, SLOT_POSITION } from '../data/formations.js';
 import { FRONTS, COVERAGES, PRESSURES } from '../data/defense.js';
-import { schemeFit } from '../data/schemes.js';
 import { clamp, byDesc, remap } from '../core/util.js';
 
 // Archetypes that suit each slot. A slot receiver playing X is doing a job he

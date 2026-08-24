@@ -2,7 +2,6 @@
 // overall, the body types that show up at the position, and the archetypes a
 // scout would put on a report.
 
-import { ATTR_KEYS } from './attributes.js';
 
 // Every player carries these regardless of position.
 const UNIVERSAL = [

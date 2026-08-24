@@ -5,7 +5,7 @@
 // feels about the place he already is. A club with cap space and a losing
 // record has to overpay, which is exactly right.
 
-import { marketValue, buildContract, minSalary, Contract } from '../model/contract.js';
+import { marketValue, buildContract, minSalary } from '../model/contract.js';
 import { schemeFit } from '../data/schemes.js';
 import { POSITIONS, ROSTER_BLUEPRINT } from '../data/positions.js';
 import { clamp, remap, byDesc, round, money } from '../core/util.js';
@@ -207,17 +207,11 @@ export function releasePlayer(league, team, player, postJune1 = false) {
  * dead money later. Every real front office does this, and it is how a club
  * ends up in cap trouble two years after a good season.
  */
-export function restructureContract(player, leagueYear) {
+export function restructureContract(player, leagueYear, targetSaving = Infinity) {
   const c = player.contract;
   if (!c) return 0;
-  const room = c.restructureRoom(leagueYear);
-  if (room < 500_000) return 0;
-  const i = c.yearIndex(leagueYear);
-  if (i < 0 || i >= c.years) return 0;
-  const before = c.capHit(leagueYear);
-  c.baseSalaries[i] = Math.max(minSalary(player.exp), c.baseSalaries[i] - room);
-  c.signingBonus += room;
-  return before - c.capHit(leagueYear);
+  if (c.restructureRoom(leagueYear, player.exp) < 500_000) return 0;
+  return c.restructure(leagueYear, targetSaving, player.exp);
 }
 
 /**
@@ -239,8 +233,8 @@ export function trimRoster(rng, league, team, limit = 53, capYear = null) {
     // that is the order a real front office works in.
     if (team.roster.length <= limit && team.capSpace(leagueYear, leagueYear) < 0) {
       const restructurable = team.roster
-        .filter((p) => p.contract?.restructureRoom(leagueYear) > 500_000)
-        .sort(byDesc((p) => p.contract.restructureRoom(leagueYear)));
+        .filter((p) => p.contract?.restructureRoom(leagueYear, p.exp) > 500_000)
+        .sort(byDesc((p) => p.contract.restructureRoom(leagueYear, p.exp)));
       if (restructurable.length) {
         restructureContract(restructurable[0], leagueYear);
         continue;

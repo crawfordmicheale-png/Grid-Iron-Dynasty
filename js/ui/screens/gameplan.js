@@ -3,13 +3,10 @@
 import { h, btn, chip, panel, panelFlush, table, empty, toast } from '../dom.js';
 import { registerScreen, state, refresh, userTeam } from '../app.js';
 import {
-  DRILL_TYPES, DRILL_KEYS, PRACTICE_PERIODS, runPracticeWeek,
-  createGameplan, suggestFocusGroups, autoPlan, familiarityMultiplier,
+  DRILL_TYPES, DRILL_KEYS, PRACTICE_PERIODS, runPracticeWeek, createGameplan, suggestFocusGroups, autoPlan,
 } from '../../season/practice.js';
-import { PASS_CONCEPTS } from '../../data/passConcepts.js';
-import { RUN_CONCEPTS } from '../../data/runConcepts.js';
 import { FORMATIONS } from '../../data/formations.js';
-import { round, byDesc } from '../../core/util.js';
+import { round } from '../../core/util.js';
 
 let plan = null;
 let focus = ['OL', 'DB'];

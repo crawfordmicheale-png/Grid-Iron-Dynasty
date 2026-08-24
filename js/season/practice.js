@@ -277,7 +277,10 @@ export function familiarityMultiplier(gameplan, playId) {
   // as neutral rather than penalising a club for a system it never opted into.
   if (!gameplan) return 1;
   const f = gameplan.familiarity?.[playId] ?? 0;
-  return remap(f, 0, 1, 0.88, 1.06);
+  // Centred so that a club which prepares normally sits a shade above the
+  // neutral 1.0 a club with no plan at all gets. A well-drilled call is worth
+  // real yards; one nobody repped is a modest penalty, not a catastrophe.
+  return remap(f, 0, 1, 0.94, 1.10);
 }
 
 /** Bonus in a situation the team has drilled this week. */

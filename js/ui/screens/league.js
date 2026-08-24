@@ -1,12 +1,11 @@
 // Standings, leaders, the bracket, and the transaction wire.
 
-import { h, chip, panel, panelFlush, table, ovrBadge, empty } from '../dom.js';
-import { registerScreen, state, refresh, userTeam } from '../app.js';
+import { h, chip, panel, panelFlush, table, empty } from '../dom.js';
+import { registerScreen, state, refresh } from '../app.js';
 import { standingsTable } from '../../season/standings.js';
-import { bracketGames, ROUNDS } from '../../season/playoffs.js';
+import { ROUNDS } from '../../season/playoffs.js';
 import { CONFERENCES, DIVISIONS, CHAMPIONSHIP_NAME } from '../../data/teams.js';
-import { PHASES } from '../../model/league.js';
-import { byDesc, money, passerRating, round } from '../../core/util.js';
+import { byDesc, money, passerRating } from '../../core/util.js';
 
 let tab = 'standings';
 

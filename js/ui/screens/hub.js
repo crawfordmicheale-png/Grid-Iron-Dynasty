@@ -4,10 +4,10 @@ import { h, btn, panel, panelFlush, table, ovrBadge, empty, toast, chip } from '
 import { registerScreen, state, go, refresh, userTeam, PHASES } from '../app.js';
 import { REGULAR_SEASON_WEEKS } from '../../season/schedule.js';
 import { standingsTable } from '../../season/standings.js';
-import { bracketGames, advanceBracket, ROUNDS } from '../../season/playoffs.js';
-import { Offseason } from '../../season/offseason.js';
+import { bracketGames, advanceBracket } from '../../season/playoffs.js';
+import { Offseason, OFFSEASON_STAGES } from '../../season/offseason.js';
 import { generateWeather } from '../../sim/context.js';
-import { fieldPosName, money, round } from '../../core/util.js';
+import { round } from '../../core/util.js';
 
 function nextGame() {
   const lg = state.league;
@@ -16,7 +16,20 @@ function nextGame() {
       (g) => !g.played && (g.home === lg.userTeamId || g.away === lg.userTeamId),
     ) ?? null;
   }
-  return lg.nextGameFor(lg.userTeamId);
+  // Only this week's game counts. The schedule lookup happily returns a game
+  // several weeks out, which would put a bye week on the field and send the
+  // "Coach this game" button to a fixture that has not come around yet.
+  const next = lg.nextGameFor(lg.userTeamId);
+  return next && next.week === lg.week ? next : null;
+}
+
+// Is the user's club still playing in the postseason?
+function stillAlive() {
+  const lg = state.league;
+  if (lg.phase !== PHASES.PLAYOFFS) return true;
+  const bracket = state.season?.bracket;
+  if (!bracket || bracket.complete) return false;
+  return bracketGames(bracket).some((g) => g.home === lg.userTeamId || g.away === lg.userTeamId);
 }
 
 function simWeek() {
@@ -49,14 +62,16 @@ function playNextGame() {
   go('gameday', { scheduleGame: game });
 }
 
+// Run the league forward until the user's club is next on the field. If they
+// are out of the playoffs there is no next game, so this carries the season to
+// its end instead.
 function simToNextUserGame() {
   const lg = state.league;
   let guard = 0;
-  while (guard < 25) {
+  while (guard < 30) {
     guard += 1;
-    const game = nextGame();
-    if (game) break;
     if (lg.phase === PHASES.OFFSEASON) break;
+    if (nextGame()) break;
     simWeek();
   }
   refresh();
@@ -137,8 +152,7 @@ function offseasonPanel() {
 }
 
 function nextStageName(off) {
-  const next = off.stageIndex + 1;
-  return off.constructor.name && next < 10 ? (off.stage.name) : 'camp';
+  return OFFSEASON_STAGES[off.stageIndex + 1]?.name ?? 'Camp';
 }
 
 function offseasonBlurb(key) {
@@ -198,11 +212,12 @@ registerScreen('hub', {
             btn('Simulate the week', () => simWeek())))
         : h('div', { class: 'stack' },
           h('p', { class: 'muted' }, lg.phase === PHASES.PLAYOFFS
-            ? 'Your season is over.'
+            ? 'Your season is over. The rest of the bracket plays on.'
             : 'Bye week — no game scheduled.'),
           h('div', { class: 'row' },
             btn('Simulate the week', () => simWeek(), { variant: 'primary' }),
-            btn('Sim to my next game', () => simToNextUserGame())))));
+            btn(stillAlive() ? 'Sim to my next game' : 'Sim to the offseason',
+              () => simToNextUserGame())))));
 
     const unitPanel = panel('Team Report', h('div', { class: 'stack' },
       h('div', { class: 'row' },

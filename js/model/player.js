@@ -8,6 +8,7 @@
 
 import { POSITIONS, POSITION_FLEX } from '../data/positions.js';
 import { TRAITS } from '../data/traits.js';
+import { Contract } from './contract.js';
 import { clamp, round, remap } from '../core/util.js';
 
 // Development tiers gate how much of the ceiling a player actually reaches and
@@ -67,7 +68,11 @@ export class Player {
     this.traits = data.traits ?? [];
 
     this.teamId = data.teamId ?? null;
-    this.contract = data.contract ?? null;
+    // A contract arriving from a save file is a plain object. Rehydrate it, or
+    // every cap calculation on a loaded franchise throws.
+    this.contract = data.contract
+      ? (data.contract instanceof Contract ? data.contract : Contract.fromJSON(data.contract))
+      : null;
 
     // Condition
     this.fatigue = data.fatigue ?? 100;  // 100 = fresh

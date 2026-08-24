@@ -31,6 +31,11 @@ export class Contract {
     this.years = data.years ?? 1;               // total length
     this.startYear = data.startYear ?? 0;       // league year the deal began
     this.signingBonus = data.signingBonus ?? 0; // paid up front, prorated
+    // Bonus money charged to the cap in each contract year. Held explicitly
+    // rather than derived, because a restructure spreads new bonus money over
+    // the years that are *left*, which no single scalar can express. Null
+    // means "never restructured": derive the flat schedule on demand.
+    this.prorationSchedule = data.prorationSchedule ?? null;
     this.baseSalaries = data.baseSalaries ?? [];// per contract year
     this.rosterBonuses = data.rosterBonuses ?? [];
     this.guaranteed = data.guaranteed ?? 0;     // total guaranteed at signing
@@ -47,6 +52,24 @@ export class Contract {
 
   get annualProration() {
     return this.prorationYears > 0 ? this.signingBonus / this.prorationYears : 0;
+  }
+
+  // The schedule this deal actually charges, materialised on first need.
+  proration() {
+    if (!this.prorationSchedule) {
+      const flat = this.annualProration;
+      this.prorationSchedule = Array.from(
+        { length: this.years },
+        (_, i) => (i < this.prorationYears ? flat : 0),
+      );
+    }
+    return this.prorationSchedule;
+  }
+
+  // Bonus charged in a single contract year.
+  prorationFor(i) {
+    if (i < 0 || i >= this.years) return 0;
+    return this.proration()[i] ?? 0;
   }
 
   get totalValue() {
@@ -72,15 +95,15 @@ export class Contract {
   capHit(leagueYear) {
     const i = this.yearIndex(leagueYear);
     if (i < 0 || i >= this.years) return 0;
-    const proration = i < this.prorationYears ? this.annualProration : 0;
-    return (this.baseSalaries[i] ?? 0) + (this.rosterBonuses[i] ?? 0) + proration;
+    return (this.baseSalaries[i] ?? 0) + (this.rosterBonuses[i] ?? 0) + this.prorationFor(i);
   }
 
   // Signing bonus money not yet charged to the cap as of `leagueYear`.
   remainingProration(leagueYear) {
-    const i = this.yearIndex(leagueYear);
-    const left = Math.max(0, this.prorationYears - Math.max(0, i));
-    return left * this.annualProration;
+    const from = Math.max(0, this.yearIndex(leagueYear));
+    let sum = 0;
+    for (let i = from; i < this.years; i += 1) sum += this.prorationFor(i);
+    return sum;
   }
 
   // Cost of releasing him. Pre-June-1 accelerates everything into this year.
@@ -92,8 +115,9 @@ export class Contract {
     let thisYear;
     let nextYear = 0;
     if (postJune1) {
-      thisYear = this.annualProration + guaranteedBase;
-      nextYear = Math.max(0, remaining - this.annualProration);
+      const thisYearBonus = this.prorationFor(i);
+      thisYear = thisYearBonus + guaranteedBase;
+      nextYear = Math.max(0, remaining - thisYearBonus);
     } else {
       thisYear = remaining + guaranteedBase;
     }
@@ -104,15 +128,58 @@ export class Contract {
     };
   }
 
-  // Converting base salary to a signing bonus: cap relief now, more dead money later.
-  restructureRoom(leagueYear) {
+  // How many years new bonus money can be spread over, restructuring now.
+  restructureSpread(leagueYear) {
     const i = this.yearIndex(leagueYear);
     const yearsLeft = this.years - i;
     if (i < 0 || yearsLeft < 2) return 0;
-    const base = this.baseSalaries[i] ?? 0;
-    const convertible = Math.max(0, base - minSalary(0));
-    const spread = Math.min(yearsLeft, MAX_PRORATION_YEARS);
-    return Math.round(convertible * (1 - 1 / spread));
+    return Math.min(yearsLeft, MAX_PRORATION_YEARS);
+  }
+
+  // Base salary that could legally be converted this year.
+  convertibleBase(leagueYear, exp = 0) {
+    const i = this.yearIndex(leagueYear);
+    if (i < 0 || i >= this.years) return 0;
+    return Math.max(0, (this.baseSalaries[i] ?? 0) - minSalary(exp));
+  }
+
+  // Converting base salary to a signing bonus: cap relief now, more dead money
+  // later. The returned figure is the *cap saving* available this year, which
+  // is what a front office actually shops for.
+  restructureRoom(leagueYear, exp = 0) {
+    const spread = this.restructureSpread(leagueYear);
+    if (!spread) return 0;
+    return Math.round(this.convertibleBase(leagueYear, exp) * (1 - 1 / spread));
+  }
+
+  /**
+   * Move base salary into the signing bonus and prorate it over the years that
+   * remain. `targetSaving` asks for a specific amount of cap relief; omit it to
+   * take everything available. Returns the cap saving actually realised.
+   */
+  restructure(leagueYear, targetSaving = Infinity, exp = 0) {
+    const spread = this.restructureSpread(leagueYear);
+    if (!spread) return 0;
+    const i = this.yearIndex(leagueYear);
+    const convertible = this.convertibleBase(leagueYear, exp);
+    if (convertible <= 0) return 0;
+
+    // Saving is the converted amount less the slice that stays on this year's
+    // books, so converting X buys X * (1 - 1/spread).
+    const wanted = Number.isFinite(targetSaving)
+      ? Math.max(0, targetSaving) / (1 - 1 / spread)
+      : convertible;
+    const convert = Math.round(Math.min(convertible, wanted));
+    if (convert <= 0) return 0;
+
+    const before = this.capHit(leagueYear);
+    const schedule = this.proration();
+    const slice = convert / spread;
+    for (let y = i; y < i + spread; y += 1) schedule[y] = (schedule[y] ?? 0) + slice;
+    this.baseSalaries[i] = (this.baseSalaries[i] ?? 0) - convert;
+    this.signingBonus += convert;
+    this.guaranteed += convert;
+    return before - this.capHit(leagueYear);
   }
 
   toJSON() {

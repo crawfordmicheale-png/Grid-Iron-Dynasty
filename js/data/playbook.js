@@ -6,7 +6,7 @@
 // scheme would actually carry, and tags each play for the situations it belongs
 // in.
 
-import { FORMATIONS, FORMATION_KEYS, formationSlots, PERSONNEL } from './formations.js';
+import { FORMATIONS, FORMATION_KEYS, formationSlots } from './formations.js';
 import { PASS_CONCEPTS, PASS_CONCEPT_KEYS } from './passConcepts.js';
 import { RUN_CONCEPTS, RUN_CONCEPT_KEYS } from './runConcepts.js';
 import { ROUTES } from './routes.js';

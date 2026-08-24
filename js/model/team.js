@@ -5,7 +5,7 @@ import { TEAM_BY_ID } from '../data/teams.js';
 import { OFFENSIVE_SCHEMES, DEFENSIVE_SCHEMES, schemeFit } from '../data/schemes.js';
 import { staffList, positionCoachFor } from './staff.js';
 import { capForYear } from './contract.js';
-import { clamp, mean, byDesc, round } from '../core/util.js';
+import { mean, byDesc, round } from '../core/util.js';
 
 export const ROSTER_LIMIT = 53;
 export const GAMEDAY_ACTIVE = 48;

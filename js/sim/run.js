@@ -15,9 +15,9 @@ import { clamp, remap, contest, round } from '../core/util.js';
 
 export const RUN_TUNING = {
   gapYieldMin: -0.28,
-  gapYieldMax: 3.62,
+  gapYieldMax: 3.02,
   visionScale: 26,
-  boxAdvantageYards: 1.15,   // yards per body of numbers advantage
+  boxAdvantageYards: 0.60,   // yards per body of numbers advantage
   secondLevelScale: 24,
   breakawayScale: 26,
   baseFumble: 0.0068,
@@ -131,11 +131,12 @@ export function resolveRun(sim) {
     let bg = blockGrade(blockers, ctx, play);
     let dg = defendGrade(defenders, ctx);
 
-    // Formation strength at this gap, and the front's strength there.
-    bg *= play.gapStrength?.[gap] ?? 1;
+    // Formation strength at this gap, and the front's strength there. Softened:
+    // where a formation is strong matters, but not more than who is blocking.
+    bg *= (play.gapStrength?.[gap] ?? 1) ** 0.55;
     // A run concept the line has repped all week fits up better.
     bg *= 1 + ((sim.execution ?? 1) - 1) * 0.9;
-    dg *= defense.front.gapStrength[gap] ?? 1;
+    dg *= (defense.front.gapStrength[gap] ?? 1) ** 0.55;
     // Double teams at the point of attack.
     if (gap === play.aimGap) {
       bg *= 1 + (play.doubleTeams ?? 1) * 0.045;
@@ -144,12 +145,14 @@ export function resolveRun(sim) {
     // The concept aims somewhere; other gaps are incidental.
     const designPenalty = gap === play.aimGap ? 0 : -6.5;
 
-    // A wide spread here on purpose: the gap between a good line and a bad one
-    // is real, but football is not deterministic and a 15-point spread made it
-    // nearly so. This is the main dial on league parity.
-    const win = contest(bg + designPenalty, dg, 21);
+    // Football is not deterministic, so this stays wide -- but not so wide that
+    // who is blocking stops mattering. This is the main dial on league parity.
+    const win = contest(bg + designPenalty, dg, 14);
     let yield_ = remap(win, 0, 1, T.gapYieldMin, T.gapYieldMax);
-    yield_ += numbers * T.boxAdvantageYards * (gap === play.aimGap ? 1 : 0.6);
+    // Numbers help, with diminishing returns: there are only so many gaps, and
+    // the eighth blocker cannot be used the way the sixth was.
+    const edge = Math.sign(numbers) * Math.sqrt(Math.abs(clamp(numbers, -4, 4)));
+    yield_ += edge * T.boxAdvantageYards * (gap === play.aimGap ? 1 : 0.6);
     yield_ += blitzGuess * (gap === play.aimGap ? 1 : 0.4);
     yield_ += rng.gauss(0, 1.1);
     gapResults[gap] = { gap, yield: yield_, blockers, defenders, win };

@@ -6,12 +6,10 @@
 // the plays that belong in this situation, then weights what is left by how
 // well it fits the scheme and the moment.
 
-import { PASS_CONCEPTS } from '../data/passConcepts.js';
-import { RUN_CONCEPTS } from '../data/runConcepts.js';
 import { FORMATIONS } from '../data/formations.js';
 import { COVERAGES, PRESSURES, FRONTS } from '../data/defense.js';
 import { schemeAffinity, defensiveAffinity } from '../data/playbook.js';
-import { clamp, remap, logistic, byDesc } from '../core/util.js';
+import { clamp, remap, logistic } from '../core/util.js';
 
 // --- Expected points --------------------------------------------------------
 // Points the average offense will eventually score, given first and ten at this
@@ -106,6 +104,54 @@ function situationTagsFor(sit) {
 }
 
 /**
+ * How often a coordinator running this scheme reaches for this play, before any
+ * situation is known. Practice installs against this: a call sheet is built
+ * from the plays a coach means to run, not an arbitrary slice of the book.
+ */
+export function installPriority(play, scheme) {
+  let w = schemeAffinity(play, scheme) ** 1.3;
+  if (play.type === 'pass') {
+    const d = play.primaryDepth ?? 8;
+    w *= d < 0 ? 1.25 : d <= 5 ? 1.0 : d <= 10 ? 1.8 : d <= 19 ? 1.02 : 0.78;
+  }
+  return w;
+}
+
+/**
+ * The week's call sheet. A coordinator installs a situational spine first --
+ * he needs *something* ready for third and one and for the red zone -- and
+ * spends what is left of the practice week on his base offense.
+ */
+export function buildInstallList(book, scheme, size = 34) {
+  const ranked = [...(book?.all ?? [])].sort(
+    (a, b) => installPriority(b, scheme) - installPriority(a, scheme),
+  );
+  const seen = new Set();
+  const picked = [];
+  const add = (play) => {
+    if (!play || seen.has(play.id) || picked.length >= size) return;
+    seen.add(play.id);
+    picked.push(play.id);
+  };
+
+  for (const tag of ['shortYardage', 'redZone', 'goalLine', 'twoMinute', 'thirdAndLong']) {
+    ranked.filter((p) => p.tags.includes(tag)).slice(0, 2).forEach(add);
+  }
+  // Base offense, keeping the run and pass halves of the sheet in proportion.
+  const runs = ranked.filter((p) => p.type === 'run');
+  const passes = ranked.filter((p) => p.type === 'pass');
+  let ri = 0;
+  let pi = 0;
+  while (picked.length < size && (ri < runs.length || pi < passes.length)) {
+    if (picked.length % 5 < 2 && ri < runs.length) { add(runs[ri]); ri += 1; }
+    else if (pi < passes.length) { add(passes[pi]); pi += 1; }
+    else if (ri < runs.length) { add(runs[ri]); ri += 1; }
+    else break;
+  }
+  return picked;
+}
+
+/**
  * Call an offensive play.
  * @param {object} cfg { rng, playbook, scheme, coach, sit, gameplan, opponentTendency }
  */
@@ -154,7 +200,6 @@ export function callOffensivePlay(cfg) {
     }
     // Needing a chunk means the concept has to be able to produce one.
     if (sit.down >= 3 && play.type === 'pass') {
-      const maxDepth = Math.max(...Object.values(play.routes).map((r) => (PASS_CONCEPTS[play.concept] ? 0 : 0)));
       const conceptTiming = play.timing ?? 2.5;
       // On third and long a one-second concept cannot get to the sticks.
       if (sit.distance >= 8 && conceptTiming <= 1.6) w *= 0.25;

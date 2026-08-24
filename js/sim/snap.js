@@ -4,9 +4,7 @@
 import { resolvePass } from './pass.js';
 import { resolveRun } from './run.js';
 import { offensivePersonnel, defensivePersonnel, assignCoverage } from './personnel.js';
-import { FORMATIONS } from '../data/formations.js';
-import { schemeFit } from '../data/schemes.js';
-import { clamp, remap, round } from '../core/util.js';
+import { remap, round } from '../core/util.js';
 
 // --- Penalties --------------------------------------------------------------
 // Rates are per-snap probabilities before player discipline is applied. They
@@ -109,7 +107,10 @@ export const INJURY_TYPES = [
   { name: 'torn pectoral', weeks: [8, 16], severity: 0.85, weight: 1 },
 ];
 
-const BASE_INJURY_RATE = 0.00026;
+// Per exposed player per snap. Calibrated so a club carries roughly five or six
+// unavailable players at a time across a season, which is what makes depth,
+// the practice squad, and a backup quarterback worth paying for.
+const BASE_INJURY_RATE = 0.00340;
 
 export function rollInjuries(sim, result) {
   const { rng, offense, defense } = sim;
@@ -212,6 +213,9 @@ export function runSnap(cfg) {
     aggression: cfg.aggression ?? 0,
     desperation: cfg.desperation ?? 0,
     runGameCredibility: cfg.runGameCredibility ?? 55,
+    // How well this play was practised this week. Without this the whole
+    // install system is decorative: the game plan changes nothing on the field.
+    execution: cfg.execution ?? 1,
     offCoachDiscipline: offTeam.staff?.HC?.attr('discipline') ?? 60,
     defCoachDiscipline: defTeam.staff?.HC?.attr('discipline') ?? 60,
     injuryPreventionMult: cfg.injuryPreventionMult ?? 1,

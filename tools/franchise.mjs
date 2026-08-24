@@ -3,8 +3,7 @@
 import { generateLeague } from '../js/model/leagueGen.js';
 import { Season } from '../js/season/season.js';
 import { Offseason } from '../js/season/offseason.js';
-import { capForYear } from '../js/model/contract.js';
-import { round, mean, money, byDesc, passerRating } from '../js/core/util.js';
+import { round, mean, byDesc } from '../js/core/util.js';
 
 const YEARS = Number(process.argv[2] ?? 10);
 const lg = generateLeague({ seed: process.argv[3] ?? 'franchise' });
