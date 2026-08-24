@@ -9,6 +9,7 @@ import { playbookForScheme, defensivePlaybookForScheme } from '../data/playbook.
 import { PHASES } from '../model/league.js';
 import { CONFERENCES, DIVISIONS, CHAMPIONSHIP_NAME } from '../data/teams.js';
 import { runPracticeWeek, autoPlan, suggestFocusGroups, createGameplan } from './practice.js';
+import { buildInstallList } from '../sim/playCaller.js';
 import { clamp, remap } from '../core/util.js';
 
 export class Season {
@@ -109,10 +110,7 @@ export class Season {
       if (!team.gameplan) team.gameplan = createGameplan();
       const books = this.booksFor(team);
       // Coordinators install the slice of the book they actually mean to call.
-      const installList = [...books.off.all]
-        .sort((a, b) => (b.tags.length - a.tags.length))
-        .slice(0, 34)
-        .map((p) => p.id);
+      const installList = buildInstallList(books.off, team.offScheme, 34);
       reports[team.id] = runPracticeWeek({
         rng: lg.rng,
         team,

@@ -5,7 +5,7 @@
 // point -- a good position coach is worth real rating points every winter,
 // which is why the hiring screen matters.
 
-import { DEV_TIERS, ageFactor } from '../model/player.js';
+import { DEV_TIERS } from '../model/player.js';
 import { POSITIONS } from '../data/positions.js';
 import { PHYSICAL_DECAY, MENTAL_GROWTH } from '../data/attributes.js';
 import { positionCoachFor } from '../model/staff.js';

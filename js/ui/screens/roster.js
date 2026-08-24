@@ -1,6 +1,6 @@
 // Roster and depth chart, with a full scouting card on every player.
 
-import { h, btn, chip, panel, panelFlush, table, ovrBadge, bar, empty, modal, closeModal, toast } from '../dom.js';
+import { h, btn, chip, panelFlush, table, ovrBadge, bar, empty, modal, closeModal, toast } from '../dom.js';
 import { registerScreen, state, refresh, userTeam } from '../app.js';
 import { POSITIONS, POSITION_KEYS } from '../../data/positions.js';
 import { ATTRIBUTES, ATTR_GROUPS } from '../../data/attributes.js';

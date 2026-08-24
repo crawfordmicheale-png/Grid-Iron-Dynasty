@@ -3,15 +3,60 @@
 import { h, btn, chip, panel, panelFlush, table, ovrBadge, empty, modal, closeModal, toast } from '../dom.js';
 import { registerScreen, state, refresh, userTeam } from '../app.js';
 import { playerCard } from './roster.js';
-import { marketValue, buildContract, minSalary } from '../../model/contract.js';
-import { releasePlayer, restructureContract, teamOffer, playerPreference } from '../../season/freeAgency.js';
-import { scoutProspect, prospectValue } from '../../season/draft.js';
+import { marketValue, buildContract } from '../../model/contract.js';
+import { releasePlayer, restructureContract, playerPreference } from '../../season/freeAgency.js';
+import { prospectValue } from '../../season/draft.js';
 import { schemeFit, fitGrade } from '../../data/schemes.js';
 import { POSITIONS } from '../../data/positions.js';
-import { PHASES } from '../../model/league.js';
 import { money, byDesc, round } from '../../core/util.js';
 
 let tab = 'cap';
+
+// Cutting a player cannot be undone, so put the real bill in front of the
+// coach first: what he saves, and what stays on the books either way.
+function confirmRelease(player, team, ly) {
+  const lg = state.league;
+  const pre = player.contract?.releaseCost(ly, false) ?? { thisYear: 0, nextYear: 0, savings: 0 };
+  const post = player.contract?.releaseCost(ly, true) ?? { thisYear: 0, nextYear: 0, savings: 0 };
+
+  const summary = (label, cost) => h('div', { class: 'stack' },
+    h('div', { class: 'section-title' }, label),
+    h('div', { class: 'stat-row' },
+      h('span', { class: 'stat-row__label' }, 'Dead money this year'),
+      h('span', { class: 'stat-row__value bad' }, money(cost.thisYear))),
+    cost.nextYear
+      ? h('div', { class: 'stat-row' },
+        h('span', { class: 'stat-row__label' }, 'Dead money next year'),
+        h('span', { class: 'stat-row__value bad' }, money(cost.nextYear)))
+      : null,
+    h('div', { class: 'stat-row' },
+      h('span', { class: 'stat-row__label' }, 'Cap saved'),
+      h('span', { class: `stat-row__value ${cost.savings >= 0 ? 'good' : 'bad'}` }, money(cost.savings))));
+
+  const cut = (postJune1) => {
+    releasePlayer(lg, team, player, postJune1);
+    team.rebuildDepthChart();
+    closeModal();
+    toast(`${player.name} has been released.`, 'warn');
+    refresh();
+  };
+
+  modal({
+    title: `Release ${player.name}?`,
+    body: h('div', { class: 'stack' },
+      h('p', { class: 'muted' },
+        `${player.pos} · age ${player.age} · ${player.overall()} overall. He goes straight to the free agent pool.`),
+      summary('Standard release', pre),
+      summary('Post-June-1 designation', post),
+      h('p', { class: 'small faint' },
+        'A post-June-1 cut splits the remaining bonus across two years — less pain now, more later.')),
+    actions: [
+      btn('Keep him', () => closeModal()),
+      btn('Release', () => cut(false), { variant: 'danger' }),
+      btn('Release (post-June-1)', () => cut(true), { variant: 'danger' }),
+    ],
+  });
+}
 
 function capTab(team, lg) {
   const ly = lg.leagueYear;
@@ -43,7 +88,11 @@ function capTab(team, lg) {
               if (saved > 0) toast(`Freed ${money(saved)} — added to future dead money.`, 'good');
               else toast('Nothing left to restructure on that deal.', 'bad');
               refresh();
-            }, { small: true, disabled: (p.contract?.restructureRoom(ly) ?? 0) < 500000 })) },
+            }, { small: true, disabled: (p.contract?.restructureRoom(ly, p.exp) ?? 0) < 500000 }),
+            btn('Release', (e) => {
+              e.stopPropagation();
+              confirmRelease(p, team, ly);
+            }, { small: true, variant: 'danger' })) },
         ], contracts, { onRow: (p) => modal({ title: p.name, body: playerCard(p, team), actions: [btn('Close', () => closeModal())] }) }))),
 
     h('div', { class: 'stack' },

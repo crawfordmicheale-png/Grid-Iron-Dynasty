@@ -6,13 +6,13 @@
 // pressed up against the salary cap the way real ones are.
 
 import { League, PHASES } from './league.js';
-import { Team, ROSTER_LIMIT } from './team.js';
+import { Team } from './team.js';
 import { generatePlayer } from './playerGen.js';
 import { generateStaff, generateCoach, STAFF_ROLE_KEYS } from './staff.js';
 import { TEAM_DATA } from '../data/teams.js';
 import { ROSTER_BLUEPRINT, POSITION_KEYS } from '../data/positions.js';
 import {
-  marketValue, buildContract, minSalary, capForYear, Contract, POSITION_VALUE,
+  marketValue, buildContract, minSalary, capForYear, Contract,
 } from './contract.js';
 import { clamp, remap, byDesc } from '../core/util.js';
 
@@ -146,15 +146,11 @@ function enforceCap(rng, team, leagueYear, cap) {
     guard += 1;
     const overBy = team.capHitTotal(leagueYear) - cap;
     const restructurable = team.roster
-      .filter((p) => p.contract?.restructureRoom(leagueYear) > 500_000)
-      .sort(byDesc((p) => p.contract.restructureRoom(leagueYear)));
+      .filter((p) => p.contract?.restructureRoom(leagueYear, p.exp) > 500_000)
+      .sort(byDesc((p) => p.contract.restructureRoom(leagueYear, p.exp)));
     if (!restructurable.length) break;
     const p = restructurable[0];
-    const c = p.contract;
-    const i = c.yearIndex(leagueYear);
-    const convert = Math.min(c.restructureRoom(leagueYear), overBy * 1.15);
-    c.baseSalaries[i] = Math.max(minSalary(p.exp), c.baseSalaries[i] - convert);
-    c.signingBonus += convert;
+    if (p.contract.restructure(leagueYear, overBy * 1.15, p.exp) <= 0) break;
   }
   haircut(team, leagueYear, cap);
   team.rebuildDepthChart();
@@ -183,7 +179,7 @@ function haircut(team, leagueYear, cap) {
       const c = p.contract;
       const i = c.yearIndex(leagueYear);
       pool += Math.max(0, (c.baseSalaries[i] ?? 0) - minSalary(p.exp));
-      pool += i < c.prorationYears ? c.annualProration : 0;
+      pool += c.prorationFor(i);
     }
     if (pool <= 1000) return;
 
@@ -194,6 +190,8 @@ function haircut(team, leagueYear, cap) {
       const floor = minSalary(p.exp);
       const excess = Math.max(0, (c.baseSalaries[i] ?? 0) - floor);
       c.baseSalaries[i] = Math.round((c.baseSalaries[i] ?? floor) - excess * ratio);
+      const schedule = c.proration();
+      for (let y = 0; y < schedule.length; y += 1) schedule[y] *= 1 - ratio;
       c.signingBonus = Math.round(c.signingBonus * (1 - ratio));
       c.guaranteed = Math.min(c.guaranteed, c.signingBonus + (c.baseSalaries[i] ?? 0));
     }

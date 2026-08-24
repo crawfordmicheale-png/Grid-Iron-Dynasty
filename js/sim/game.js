@@ -4,8 +4,7 @@
 import { runSnap } from './snap.js';
 import { callOffensivePlay, callDefensivePlay, fourthDownDecision, twoPointDecision } from './playCaller.js';
 import {
-  attemptFieldGoal, attemptExtraPoint, attemptPunt, attemptKickoff,
-  attemptOnsideKick, fieldGoalChance, twoPointChance,
+  attemptFieldGoal, attemptExtraPoint, attemptPunt, attemptKickoff, attemptOnsideKick, fieldGoalChance, twoPointChance,
 } from './specialTeams.js';
 import {
   GameClock, playDuration, clockStopsAfter, betweenPlays, wentOutOfBounds, QUARTER_SECONDS,
@@ -14,7 +13,7 @@ import { buildContext, generateWeather, crowdNoise, altitudeEffect } from './con
 import { playbookForScheme, defensivePlaybookForScheme } from '../data/playbook.js';
 import { travelMiles } from '../data/teams.js';
 import { familiarityMultiplier, situationalBonus } from '../season/practice.js';
-import { clamp, remap, round, fieldPosName, downDistance } from '../core/util.js';
+import { clamp, remap, round, fieldPosName } from '../core/util.js';
 
 export const TIMEOUTS_PER_HALF = 3;
 

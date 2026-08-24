@@ -13,7 +13,6 @@
 
 import { ROUTES, routeVsCoverage } from '../data/routes.js';
 import { PASS_CONCEPTS } from '../data/passConcepts.js';
-import { schemeFit } from '../data/schemes.js';
 import { clamp, remap, logistic, contest, round } from '../core/util.js';
 
 // --- Tuning constants -------------------------------------------------------

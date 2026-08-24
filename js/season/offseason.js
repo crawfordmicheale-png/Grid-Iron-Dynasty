@@ -3,12 +3,12 @@
 import { runProgression, ageStaff } from './progression.js';
 import { runCoachingCarousel, replenishCoachPool } from './staffing.js';
 import {
-  expireContracts, reSignOwnPlayers, runFreeAgency, trimRoster, releasePlayer,
+  expireContracts, reSignOwnPlayers, runFreeAgency, trimRoster,
 } from './freeAgency.js';
-import { generateDraftClass, buildScoutingBoards, runDraft, draftOrder } from './draft.js';
+import { generateDraftClass, buildScoutingBoards, runDraft } from './draft.js';
 import { generatePlayer } from '../model/playerGen.js';
 import { ROSTER_BLUEPRINT, POSITION_KEYS } from '../data/positions.js';
-import { minSalary, Contract, marketValue } from '../model/contract.js';
+import { minSalary, Contract } from '../model/contract.js';
 import { PHASES } from '../model/league.js';
 import { ROSTER_LIMIT } from '../model/team.js';
 import { clamp, byDesc, money } from '../core/util.js';

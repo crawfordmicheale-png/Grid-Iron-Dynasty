@@ -1,11 +1,10 @@
 // New franchise, load, import.
 
 import { h, btn, panel, toast } from '../dom.js';
-import { registerScreen, state, go, listSaves, loadFranchise, importFranchise, hydrate } from '../app.js';
+import { registerScreen, state, go, listSaves, loadFranchise, importFranchise } from '../app.js';
 import { generateLeague } from '../../model/leagueGen.js';
 import { Season } from '../../season/season.js';
 import { TEAM_DATA, CONFERENCES, DIVISIONS } from '../../data/teams.js';
-import { money } from '../../core/util.js';
 
 let chosenTeam = null;
 let seedInput = '';

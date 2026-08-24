@@ -9,7 +9,7 @@
 
 import { generatePlayer } from '../model/playerGen.js';
 import { DEV_TIERS } from '../model/player.js';
-import { POSITIONS, ROSTER_BLUEPRINT, POSITION_KEYS } from '../data/positions.js';
+import { POSITIONS, POSITION_KEYS } from '../data/positions.js';
 import { BLUE_CHIP_COLLEGES, COLLEGES } from '../data/names.js';
 import { buildRookieContract } from '../model/contract.js';
 import { clamp, remap, byDesc, round } from '../core/util.js';
