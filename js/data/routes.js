@@ -37,7 +37,7 @@ export const ROUTES = {
     vs: { cover0: -2, cover1: -2, cover2: 2, cover2man: -2, cover3: 3, cover4: 2, cover6: 2, tampa2: 2 },
   }),
   swing: R('swing', 'Swing', {
-    depth: 0, breakTime: 1.0, band: 'quick', type: 'out', yacBase: 6.4, risk: 0.4, checkdown: true,
+    depth: -1, breakTime: 1.0, band: 'quick', type: 'out', yacBase: 6.4, risk: 0.4, checkdown: true,
     vsPress: 0, manBonus: -2, zoneBonus: 2,
     vs: { cover0: 2, cover1: 0, cover2: -1, cover2man: -1, cover3: 2, cover4: 1, cover6: 1, tampa2: 0 },
   }),
@@ -97,7 +97,7 @@ export const ROUTES = {
     vs: { cover0: 1, cover1: 0, cover2: -3, cover2man: -3, cover3: 3, cover4: -1, cover6: 0, tampa2: -2 },
   }),
   dig: R('dig', 'Dig', {
-    depth: 14, breakTime: 2.6, band: 'intermediate', type: 'in', yacBase: 4.6, risk: 1.3,
+    depth: 14, breakTime: 2.45, band: 'intermediate', type: 'in', yacBase: 4.6, risk: 1.3,
     vsPress: -1, manBonus: 0, zoneBonus: 3,
     vs: { cover0: 1, cover1: 0, cover2: 4, cover2man: 0, cover3: 3, cover4: -3, cover6: 1, tampa2: -2 },
   }),
@@ -112,49 +112,49 @@ export const ROUTES = {
     vs: { cover0: 3, cover1: 3, cover2: -1, cover2man: 2, cover3: 2, cover4: 1, cover6: 1, tampa2: 0 },
   }),
   cross: R('cross', 'Deep Cross', {
-    depth: 15, breakTime: 2.8, band: 'intermediate', type: 'across', yacBase: 5.6, risk: 1.1,
+    depth: 15, breakTime: 2.55, band: 'intermediate', type: 'across', yacBase: 5.6, risk: 1.1,
     vsPress: 0, manBonus: 4, zoneBonus: 2,
     vs: { cover0: 4, cover1: 4, cover2: 3, cover2man: 4, cover3: 2, cover4: 0, cover6: 2, tampa2: 1 },
   }),
   corner: R('corner', 'Corner', {
-    depth: 16, breakTime: 2.9, band: 'intermediate', type: 'out', yacBase: 2.2, risk: 1.5,
+    depth: 16, breakTime: 2.6, band: 'intermediate', type: 'out', yacBase: 2.2, risk: 1.5,
     vsPress: -1, manBonus: 1, zoneBonus: 2,
     vs: { cover0: 2, cover1: 1, cover2: 5, cover2man: 2, cover3: 1, cover4: -2, cover6: 2, tampa2: 4 },
   }),
   wheel: R('wheel', 'Wheel', {
-    depth: 18, breakTime: 3.0, band: 'intermediate', type: 'up', yacBase: 3.4, risk: 1.8,
+    depth: 18, breakTime: 2.7, band: 'intermediate', type: 'up', yacBase: 3.4, risk: 1.8,
     vsPress: 1, manBonus: 4, zoneBonus: -1,
     vs: { cover0: 5, cover1: 4, cover2: 0, cover2man: 3, cover3: 1, cover4: -1, cover6: 0, tampa2: 0 },
   }),
 
   // --- Deep ---
   go: R('go', 'Go', {
-    depth: 24, breakTime: 3.4, band: 'deep', type: 'up', yacBase: 2.0, risk: 1.6,
+    depth: 24, breakTime: 2.75, band: 'deep', type: 'up', yacBase: 2.0, risk: 1.6,
     vsPress: -3, manBonus: 1, zoneBonus: -1,
     vs: { cover0: 4, cover1: 2, cover2: 1, cover2man: 2, cover3: -1, cover4: -3, cover6: -1, tampa2: -2 },
   }),
   seam: R('seam', 'Seam', {
-    depth: 20, breakTime: 3.1, band: 'deep', type: 'up', yacBase: 3.2, risk: 1.7,
+    depth: 20, breakTime: 2.6, band: 'deep', type: 'up', yacBase: 3.2, risk: 1.7,
     vsPress: -1, manBonus: 1, zoneBonus: 2,
     vs: { cover0: 3, cover1: 2, cover2: 4, cover2man: 2, cover3: 4, cover4: -2, cover6: 1, tampa2: -3 },
   }),
   post: R('post', 'Post', {
-    depth: 20, breakTime: 3.0, band: 'deep', type: 'in', yacBase: 4.0, risk: 1.9,
+    depth: 20, breakTime: 2.6, band: 'deep', type: 'in', yacBase: 4.0, risk: 1.9,
     vsPress: -1, manBonus: 2, zoneBonus: 1,
     vs: { cover0: 5, cover1: 1, cover2: 4, cover2man: 3, cover3: -3, cover4: -1, cover6: 1, tampa2: -3 },
   }),
   fade: R('fade', 'Fade', {
-    depth: 22, breakTime: 3.2, band: 'deep', type: 'up', yacBase: 1.4, risk: 1.4, contested: true,
+    depth: 22, breakTime: 2.6, band: 'deep', type: 'up', yacBase: 1.4, risk: 1.4, contested: true,
     vsPress: 1, manBonus: 2, zoneBonus: -2,
     vs: { cover0: 4, cover1: 3, cover2: -1, cover2man: 3, cover3: 0, cover4: -2, cover6: 0, tampa2: -1 },
   }),
   postCorner: R('postCorner', 'Post-Corner', {
-    depth: 21, breakTime: 3.6, band: 'deep', type: 'out', yacBase: 2.2, risk: 1.6, doubleMove: true,
+    depth: 21, breakTime: 3.05, band: 'deep', type: 'out', yacBase: 2.2, risk: 1.6, doubleMove: true,
     vsPress: -1, manBonus: 4, zoneBonus: -1,
     vs: { cover0: 4, cover1: 5, cover2: 2, cover2man: 4, cover3: 3, cover4: -1, cover6: 1, tampa2: 1 },
   }),
   sluggo: R('sluggo', 'Slant-and-Go', {
-    depth: 22, breakTime: 3.7, band: 'deep', type: 'up', yacBase: 2.4, risk: 1.7, doubleMove: true,
+    depth: 22, breakTime: 3.15, band: 'deep', type: 'up', yacBase: 2.4, risk: 1.7, doubleMove: true,
     vsPress: 0, manBonus: 5, zoneBonus: -2,
     vs: { cover0: 5, cover1: 5, cover2: 1, cover2man: 4, cover3: 2, cover4: -2, cover6: 0, tampa2: -1 },
   }),

@@ -30,6 +30,8 @@ export class Team {
     this.deadMoney = data.deadMoney ?? {};        // leagueYear -> amount
     this.chemistry = data.chemistry ?? 60;
     this.ownerPatience = data.ownerPatience ?? 60;
+    this.identity = data.identity ?? '';          // day-one scouting shorthand
+    this.window = data.window ?? 'steady';        // contend | steady | rebuild
     this.ownerGoals = data.ownerGoals ?? [];
     this.history = data.history ?? [];
     this.isUserTeam = data.isUserTeam ?? false;
@@ -250,6 +252,22 @@ export class Team {
     return staffList(this.staff);
   }
 
+  // How good the staff is, weighted to the three who decide games. Separate
+  // from roster quality on purpose -- a club can be loaded and badly coached.
+  get staffRating() {
+    const w = { HC: 3, OC: 2.2, DC: 2.2, STC: 0.9 };
+    let sum = 0;
+    let wsum = 0;
+    for (const [role, weight] of Object.entries(w)) {
+      const c = this.staff?.[role];
+      if (!c?.overall) continue;
+      sum += c.overall * weight;
+      wsum += weight;
+    }
+    if (!wsum) return 0;
+    return Math.round(sum / wsum);
+  }
+
   // --- Serialization --------------------------------------------------------
 
   toJSON() {
@@ -267,6 +285,7 @@ export class Team {
       draftPicks: this.draftPicks, deadMoney: this.deadMoney,
       chemistry: round(this.chemistry, 1), ownerPatience: round(this.ownerPatience, 1),
       ownerGoals: this.ownerGoals, history: this.history, isUserTeam: this.isUserTeam,
+      identity: this.identity, window: this.window,
     };
   }
 }

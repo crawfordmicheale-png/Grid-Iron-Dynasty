@@ -224,7 +224,10 @@ registerScreen('hub', {
         chip(`Overall ${team.overallRating}`),
         chip(`Offense ${team.offenseRating}`),
         chip(`Defense ${team.defenseRating}`),
-        chip(`Special ${team.specialTeamsRating}`)),
+        chip(`Special ${team.specialTeamsRating}`),
+        chip(`Staff ${team.staffRating}`, {
+          variant: team.staffRating >= 72 ? 'good' : team.staffRating < 52 ? 'bad' : '',
+        })),
       h('div', { class: 'row' },
         chip(`Chemistry ${Math.round(team.chemistry)}`, { variant: team.chemistry > 70 ? 'good' : team.chemistry < 45 ? 'bad' : '' }),
         chip(`Owner patience ${Math.round(team.ownerPatience)}`, { variant: team.ownerPatience > 60 ? 'good' : team.ownerPatience < 30 ? 'bad' : 'warn' })),

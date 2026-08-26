@@ -19,9 +19,10 @@ function teamCard(data, preview) {
   h('span', { class: 'teamcard__city' }, data.city),
   h('span', { class: 'teamcard__name' }, data.name),
   h('span', { class: 'teamcard__meta' },
-    t ? `OVR ${t.overallRating} · OFF ${t.offenseRating} · DEF ${t.defenseRating}` : `${data.climate} · market ${data.market}`),
+    t ? `Roster ${t.overallRating} · Staff ${t.staffRating}` : `${data.climate} · market ${data.market}`),
   t ? h('span', { class: 'teamcard__meta faint' },
-    `${t.offScheme.name} / ${t.defScheme.name}`) : null);
+    `${t.offScheme.name} / ${t.defScheme.name}`) : null,
+  t?.identity ? h('span', { class: 'teamcard__identity' }, t.identity) : null);
 }
 
 function startFranchise(preview) {
@@ -29,7 +30,9 @@ function startFranchise(preview) {
     toast('Pick a club first.', 'bad');
     return;
   }
-  const league = preview ?? generateLeague({ seed: seedInput || `gid-${Date.now()}` });
+  // Rebuild with the career seed. The rosters come out identical either way;
+  // what changes is every coin flip from the first snap onward.
+  const league = generateLeague({ seed: seedInput || `gid-${Date.now()}` });
   league.userTeamId = chosenTeam;
   for (const t of league.allTeams()) t.isUserTeam = t.id === chosenTeam;
   state.league = league;
@@ -42,11 +45,10 @@ function startFranchise(preview) {
 registerScreen('setup', {
   bare: true,
   render() {
-    // Generate a preview league so the club list shows real ratings.
-    if (!state.previewLeague || state.previewSeed !== seedInput) {
-      state.previewLeague = generateLeague({ seed: seedInput || 'gridiron-preview' });
-      state.previewSeed = seedInput;
-    }
+    // The opening league is the same every time, so this is built once and
+    // reused -- the seed below decides how the seasons play out, not who is on
+    // the rosters.
+    if (!state.previewLeague) state.previewLeague = generateLeague({ seed: 'preview' });
     const preview = state.previewLeague;
     const saves = listSaves();
 
@@ -67,22 +69,21 @@ registerScreen('setup', {
       h('div', { class: 'grid grid--2', style: { marginBottom: '22px' } },
         panel('New Franchise', h('div', { class: 'stack' },
           h('div', { class: 'field-row' },
-            h('label', {}, 'League seed'),
+            h('label', {}, 'Career seed'),
             h('input', {
               type: 'text', value: seedInput, placeholder: 'leave blank for random',
               oninput: (e) => { seedInput = e.target.value; },
-              onchange: () => go('setup'),
             })),
           h('p', { class: 'small faint' },
-            'The same seed always produces the same league, so you can replay a franchise from the start.'),
+            'Every franchise starts from the same thirty-two clubs — the same rosters, the same '
+            + 'staffs, the same problems. The seed decides how the seasons unfold from there, so '
+            + 'the same seed replays a career exactly.'),
+          chosenTeam
+            ? h('p', { class: 'small' }, preview.team(chosenTeam).identity)
+            : null,
           h('div', { class: 'row' },
             btn(chosenTeam ? `Take over the ${preview.team(chosenTeam).name}` : 'Choose a club below',
-              () => startFranchise(preview), { variant: 'primary', disabled: !chosenTeam }),
-            btn('Reroll league', () => {
-              seedInput = `gid-${Math.floor(Math.random() * 1e9).toString(36)}`;
-              state.previewSeed = null;
-              go('setup');
-            })))),
+              () => startFranchise(preview), { variant: 'primary', disabled: !chosenTeam })))),
 
         panel('Continue', h('div', { class: 'stack' },
           saves.length
