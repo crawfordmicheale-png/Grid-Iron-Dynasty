@@ -321,3 +321,12 @@ canvas.field { width: 100%; display: block; border-radius: var(--radius); }
 }
 .toast--good { border-left-color: var(--good); }
 .toast--bad  { border-left-color: var(--bad); }
+
+.teamcard__identity {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  opacity: 0.85;
+}

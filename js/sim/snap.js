@@ -110,32 +110,41 @@ export const INJURY_TYPES = [
 // Per exposed player per snap. Calibrated so a club carries roughly five or six
 // unavailable players at a time across a season, which is what makes depth,
 // the practice squad, and a backup quarterback worth paying for.
-const BASE_INJURY_RATE = 0.00340;
+const BASE_INJURY_RATE = 0.00125;
+
+// How exposed a position is on a normal snap, before direct involvement. The
+// trenches are a car crash every down; a corner in off coverage mostly runs.
+const POSITION_EXPOSURE = {
+  OT: 1.5, OG: 1.6, C: 1.5, DT: 1.7, EDGE: 1.5, LB: 1.15,
+  RB: 1.2, FB: 1.3, TE: 1.2, WR: 0.85, CB: 0.8, S: 0.85, QB: 0.55,
+  K: 0.05, P: 0.05, LS: 0.2,
+};
 
 export function rollInjuries(sim, result) {
   const { rng, offense, defense } = sim;
   const injured = [];
-  // Only the players actually involved in the collision are exposed.
-  const exposed = new Set();
-  const add = (p) => p && exposed.add(p);
-  add(result.rusher); add(result.target); add(result.tackledBy); add(result.sackedBy);
-  add(result.passer); add(result.interceptedBy);
-  // Plus a couple of linemen, who are colliding on every snap.
-  const lineOff = offense.all.filter((p) => ['OT', 'OG', 'C'].includes(p.pos));
-  const lineDef = defense.all.filter((p) => ['DT', 'EDGE'].includes(p.pos));
-  if (lineOff.length) add(rng.pick(lineOff));
-  if (lineDef.length) add(rng.pick(lineDef));
 
-  for (const p of exposed) {
+  // Everybody on the field is exposed. Restricting this to the six players who
+  // touched the ball meant corners and safeties were nearly unbreakable, and it
+  // capped how many men a club could have in the training room no matter how
+  // the rate was tuned -- the same handful were rolled over and over.
+  const involved = new Set();
+  const mark = (p) => p && involved.add(p);
+  mark(result.rusher); mark(result.target); mark(result.tackledBy); mark(result.sackedBy);
+  mark(result.passer); mark(result.interceptedBy);
+
+  for (const p of [...offense.all, ...defense.all]) {
     if (!p || p.injury) continue;
-    let rate = BASE_INJURY_RATE;
+    let rate = BASE_INJURY_RATE * (POSITION_EXPOSURE[p.pos] ?? 1);
+    // Being in the collision is the dangerous part of any given snap.
+    if (involved.has(p)) rate *= 2.6;
     rate *= p.traitMult('injuryMult');
     rate *= remap(p.rating('durability'), 35, 95, 2.0, 0.45);
     // Tired players get hurt.
     rate *= remap(p.fatigue, 20, 100, 1.7, 0.85);
     rate *= sim.injuryPreventionMult ?? 1;
     if (result.type === 'sack' && p === result.passer) rate *= 2.2;
-    if (result.yards > 15) rate *= 1.25;
+    if (result.yards > 15 && involved.has(p)) rate *= 1.25;
 
     if (rng.next() < rate) {
       const type = rng.weighted(INJURY_TYPES, (t) => t.weight);

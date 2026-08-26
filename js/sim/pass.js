@@ -13,12 +13,13 @@
 
 import { ROUTES, routeVsCoverage } from '../data/routes.js';
 import { PASS_CONCEPTS } from '../data/passConcepts.js';
+import { COVERAGES } from '../data/defense.js';
 import { clamp, remap, logistic, contest, round } from '../core/util.js';
 
 // --- Tuning constants -------------------------------------------------------
 // Named so the balance harness has one place to reach for.
 export const PASS_TUNING = {
-  baseHoldTime: 4.6,      // seconds an even blocker/rusher matchup lasts
+  baseHoldTime: 4.40,      // seconds an even blocker/rusher matchup lasts
   holdSpread: 0.32,        // lognormal sigma on that
   ratingScale: 58,         // rating points that double or halve the hold time
   unblockedTime: 1.6,      // how long an unblocked edge rusher takes to arrive
@@ -32,10 +33,10 @@ export const PASS_TUNING = {
   duressThresholdDrop: 0.85, // how much less open he will settle for when hit
   duressPoiseBar: 60,      // poise needed to consistently get it out under duress
   pressureLag: 0.35,       // delay between a rusher winning and the QB feeling it
-  depthThreshold: 0.098,   // extra separation demanded per yard of route depth
+  riskThreshold: 0.42,     // extra daylight wanted per point of route risk   // extra separation demanded per yard of route depth
   urgencyDecay: 0.78,      // how fast he stops being picky once the play is late
   accBase: 42,             // difficulty floor for an accuracy check
-  accDepthCost: 1.70,      // difficulty added per yard of air
+  accDepthCost: 2.05,      // difficulty added per yard of air
   accSepRelief: 4.0,       // difficulty removed per yard of separation
   accSpread: 27,           // rating points that meaningfully move an accuracy check
   sackEscapeScale: 30,
@@ -158,6 +159,15 @@ function blockSkill(blocker, rusher, ctx) {
 
 const ROUTE_SKILL = { quick: 'routeShort', short: 'routeShort', intermediate: 'routeMid', deep: 'routeDeep' };
 
+// League-average shell strength against each band, so the modifiers above can
+// be read as "better or worse than a typical coverage" rather than as three
+// unrelated scales.
+const SHELL_MEAN = (() => {
+  const shells = Object.values(COVERAGES);
+  const avg = (key) => shells.reduce((s, c) => s + (c[key] ?? 0), 0) / Math.max(1, shells.length);
+  return { short: avg('vsShort'), intermediate: avg('vsIntermediate'), deep: avg('vsDeep') };
+})();
+
 /**
  * How much daylight a receiver has at the moment his route comes open.
  * Returns yards of separation; roughly 0 is blanketed and 3+ is wide open.
@@ -190,10 +200,14 @@ export function computeSeparation(sim, slot, receiver, defender) {
     sep += (0.5 - jam) * 1.5 + (route.vsPress ?? 0) * 0.12;
   }
 
-  // Shell tendencies by route depth.
-  if (route.band === 'quick' || route.band === 'short') sep += (coverage.vsShort ?? 0) * -0.22;
-  else if (route.band === 'intermediate') sep += (coverage.vsIntermediate ?? 0) * -0.22;
-  else sep += (coverage.vsDeep ?? 0) * -0.22;
+  // Shell tendencies by route depth, relative to what shells do on average.
+  if (route.band === 'quick' || route.band === 'short') {
+    sep += ((coverage.vsShort ?? 0) - SHELL_MEAN.short) * -0.22;
+  } else if (route.band === 'intermediate') {
+    sep += ((coverage.vsIntermediate ?? 0) - SHELL_MEAN.intermediate) * -0.22;
+  } else {
+    sep += ((coverage.vsDeep ?? 0) - SHELL_MEAN.deep) * -0.22;
+  }
 
   // A blitz means fewer defenders in coverage.
   sep += (defense.pressure.coverageCost ?? 0) * 0.24;
@@ -286,20 +300,29 @@ export function resolvePass(sim) {
   threshold -= (sim.desperation ?? 0) * 0.9;
   threshold += remap(qb.eff('decision', ctx), 40, 99, -0.35, 0.5);
 
+  // A rusher beating his blocker is not the end of the down. The quarterback
+  // steps up, slides, and throws with somebody closing -- worse, but a throw.
+  // Treating the first won rep as a hard wall is what kills the deep game,
+  // because a go route does not come open until after it.
+  const escape = remap(
+    qb.eff('pocketPresence', ctx) * 0.7 + qb.eff('composure', ctx) * 0.3, 40, 95, 0.03, 0.22,
+  );
+  const deadline = protection.pressureTime + escape;
+
   // Walk the progression against the clock.
   let t = 0;
   let chosen = null;
   let readsMade = 0;
   for (const look of looks) {
     const availableAt = Math.max(look.openAt, t + readTime);
-    if (availableAt > protection.pressureTime) { t = availableAt; break; }
+    if (availableAt > deadline) { t = availableAt; break; }
     t = availableAt;
     readsMade += 1;
     // He wants a bigger window to throw deep, and he gets less picky the
     // longer the play goes past the timing the concept was designed for --
     // which is how a checkdown ends up being the right answer.
     const lateness = Math.max(0, t - (play.timing ?? 2.5));
-    const needed = threshold + look.route.depth * T.depthThreshold - lateness * T.urgencyDecay;
+    const needed = threshold + (look.route.risk ?? 1) * T.riskThreshold - lateness * T.urgencyDecay;
     if (look.separation >= needed) { chosen = look; break; }
   }
 
@@ -310,18 +333,14 @@ export function resolvePass(sim) {
   // through his reads, and gets less picky as the play gets late -- which is
   // how the checkdown ends up being the throw. Only once protection breaks is
   // he genuinely under pressure.
-  while (!chosen && t < protection.pressureTime) {
+  while (!chosen && t < deadline) {
     t += readTime * 0.6;
     const lateness = Math.max(0, t - (play.timing ?? 2.5));
-    let best = null;
-    let bestGap = -Infinity;
     for (const look of looks) {
       if (look.openAt > t) continue;
-      const needed = threshold + look.route.depth * T.depthThreshold - lateness * T.urgencyDecay;
-      const gap = look.separation - needed;
-      if (gap > bestGap) { bestGap = gap; best = look; }
+      const needed = threshold + (look.route.risk ?? 1) * T.riskThreshold - lateness * T.urgencyDecay;
+      if (look.separation >= needed) { chosen = look; readsMade += 1; break; }
     }
-    if (best && bestGap >= 0) { chosen = best; readsMade += 1; }
   }
 
   const pressured = t >= protection.pressureTime + PASS_TUNING.pressureLag;
@@ -481,7 +500,7 @@ function throwBall(sim, look, opts) {
   // before the coverage can do much about it, and a screen is nearly a handoff.
   // Scaled by actual depth rather than by band, so a four-yard drag gets the
   // same help a four-yard slant does.
-  acc += remap(clamp(airYards, -2, 12), -2, 12, 11, 0);
+  acc += remap(clamp(airYards, -3, 12), -3, 12, 25, 1.5);
   // Weather: wind and wet balls hurt the deep throw most.
   acc -= ctx.weather * (route.band === 'deep' ? 17 : route.band === 'intermediate' ? 10 : 5);
 
@@ -565,7 +584,11 @@ function attemptCatch(sim, look, { pressured, onTarget }) {
   logit -= pressureOnCatch * 0.033;
   logit += clamp(separation, -1, 3) * 0.25;
   // A ball in the air for forty yards is simply harder to track and adjust to.
-  if (route.band === 'deep') logit -= 0.55;
+  if (route.band === 'deep') logit -= 0.78;
+  // The shorter the throw, the more it is simply a catch: the ball arrives
+  // flat and early, the receiver is facing the passer, and the defender is
+  // still closing. That advantage fades out by the intermediate breaks.
+  logit += remap(clamp(route.depth, -3, 8), -3, 8, 1.05, 0);
   const catchChance = clamp(logistic(logit) / dropMult ** 0.4, 0.02, 0.97);
 
   if (rng.next() < catchChance) {
@@ -662,12 +685,24 @@ function computeYac(sim, look, catchResult) {
     ? defender.eff('tackle', ctx) * 0.7 + defender.eff('pursuit', ctx) * 0.3
     : 55;
 
-  let yac = base * remap(yacSkill - tackleSkill, -25, 25, 0.5, 1.9) * T.yacScale;
+  // Where the catch happens decides how much room there is to run. Quick game
+  // and screens are caught in front of everybody with blockers ahead; the
+  // intermediate throw is caught in traffic between the levels, and the man is
+  // usually on the ground where he caught it.
+  const bandRoom = { quick: 1.15, short: 1.0, intermediate: 0.5, deep: 0.85 }[route.band] ?? 1;
+  let yac = base * remap(yacSkill - tackleSkill, -25, 25, 0.5, 1.9) * T.yacScale * bandRoom;
 
   // Breaking the first tackle in space is where the long ones come from.
   const breakChance = contest(yacSkill, tackleSkill, 22) * remap(space, 0, 4, 0.5, 1.3);
   if (rng.next() < breakChance * T.yacBreakScale) {
-    const helpNearby = defense.coverage.deep + (route.band === 'deep' ? 0 : 2);
+    // How much company he has when he turns upfield. A screen catches the
+    // defense flowing the wrong way; a dig lands in the middle of the
+    // linebackers; a man twenty-five yards downfield is running into the help
+    // rather than away from it.
+    const crowding = route.band === 'deep' ? 3.2
+      : route.band === 'intermediate' ? 3.4
+        : route.depth < 0 ? 0.0 : 0.9;
+    const helpNearby = defense.coverage.deep + crowding;
     yac += rng.gaussClamped(remap(receiver.eff('speed', ctx), 75, 99, 5, 17), 8, 0, 62)
       * remap(helpNearby, 0, 4, 1.1, 0.4);
   }

@@ -6,10 +6,12 @@
 // pressed up against the salary cap the way real ones are.
 
 import { League, PHASES } from './league.js';
+import { RNG } from '../core/rng.js';
 import { Team } from './team.js';
 import { generatePlayer } from './playerGen.js';
 import { generateStaff, generateCoach, STAFF_ROLE_KEYS } from './staff.js';
 import { TEAM_DATA } from '../data/teams.js';
+import { identityFor, groupAdjustments, WINDOW_PAYROLL } from '../data/leagueIdentity.js';
 import { ROSTER_BLUEPRINT, POSITION_KEYS } from '../data/positions.js';
 import {
   marketValue, buildContract, minSalary, capForYear, Contract,
@@ -32,21 +34,25 @@ const DEPTH_FALLOFF = {
   CB: [0, -4, -8, -14, -19], S: [0, -5, -12, -17], FB: [0], K: [0], P: [0], LS: [0],
 };
 
-function slotTarget(rng, pos, slot, teamStrength) {
+function slotTarget(rng, pos, slot, teamStrength, groupAdj = 0) {
   const base = STARTER_BASELINE[pos] ?? 72;
   const falloff = DEPTH_FALLOFF[pos] ?? [0];
   const drop = falloff[Math.min(slot, falloff.length - 1)] ?? -22;
   // Team strength matters most at the top of the chart; everybody's fifth
   // receiver is roughly the same guy.
   const strengthWeight = remap(slot, 0, 4, 1.0, 0.35);
-  let target = base + drop + teamStrength * strengthWeight + rng.gauss(0, 5.0);
+  // A club's investment in a position group shows up at the top of that chart
+  // more than at the bottom: a great secondary means great starters, not a
+  // great fifth corner.
+  let target = base + drop + teamStrength * strengthWeight
+    + groupAdj * remap(slot, 0, 3, 1.0, 0.3) + rng.gauss(0, 5.0);
   // Every roster has a couple of genuine difference-makers. Without an explicit
   // fat right tail the league flattens into a sea of 76s and nobody stands out.
   if (slot === 0 && rng.bool(0.22)) target += rng.gaussClamped(7, 4, 1, 17);
   // Soft ceiling. Without it the clamp at 99 piles players up on the boundary
   // and a 99-overall stops meaning anything. Compressing the top instead keeps
   // the 85-92 band populated and makes a true 99 close to a once-a-decade player.
-  if (target > 90) target = 90 + (target - 90) * 0.5;
+  if (target > 88) target = 88 + (target - 88) * 0.42;
   // Starting quarterbacks have a floor. A 65-overall starter posts numbers no
   // professional does, and because he touches every dropback he drags the whole
   // passing offense down with him.
@@ -67,11 +73,11 @@ function slotAge(rng, pos, slot, slots) {
  * @param {Team} team
  * @param {number} teamStrength roughly -8 (rebuilding) .. +8 (loaded)
  */
-export function generateRoster(rng, team, teamStrength, usedNames) {
+export function generateRoster(rng, team, teamStrength, usedNames, groups = {}) {
   const takenNumbers = new Set();
   for (const [pos, count] of Object.entries(ROSTER_BLUEPRINT)) {
     for (let slot = 0; slot < count; slot += 1) {
-      const overall = slotTarget(rng, pos, slot, teamStrength);
+      const overall = slotTarget(rng, pos, slot, teamStrength, groups[pos] ?? 0);
       const age = slotAge(rng, pos, slot, count);
       const p = generatePlayer(rng, {
         pos, overall, age,
@@ -95,7 +101,7 @@ export function generateRoster(rng, team, teamStrength, usedNames) {
  * shows up as players on rookie contracts and team-friendly extensions, which
  * is where real cap space comes from too.
  */
-export function assignContracts(rng, team, leagueYear, cap) {
+export function assignContracts(rng, team, leagueYear, cap, payrollBand = [0.80, 0.97]) {
   const sorted = team.roster.slice().sort(byDesc((p) => marketValue(p, cap)));
 
   // First pass: what everyone is worth, and who is a minimum-salary player.
@@ -109,7 +115,7 @@ export function assignContracts(rng, team, leagueYear, cap) {
     (s, e) => s + (e.isDepth ? minSalary(e.player.exp) * 1.15 : e.value), 0,
   );
   // Target payroll: most clubs sit just under the cap, a rebuilding one well below.
-  const targetPayroll = cap * rng.float(0.80, 0.97);
+  const targetPayroll = cap * rng.float(payrollBand[0], payrollBand[1]);
   const scale = clamp(targetPayroll / Math.max(1, marketTotal), 0.35, 1.0);
 
   for (const { player, value, isDepth } of priced) {
@@ -228,6 +234,14 @@ function ownerGoals(rng, teamStrength) {
  * Generate a complete, playable league.
  * @param {object} opts { seed, startYear, userTeamId }
  */
+// The opening league is the same in every franchise, so this seed is fixed. The
+// seed the user picks drives the *career* -- games, injuries, draft classes --
+// not who is on the rosters when it starts.
+export const LEAGUE_BUILD_SEED = 'gridiron-league-2025';
+
+// How hard the authored talent axis pushes on roster quality.
+const TALENT_SCALE = 0.74;
+
 export function generateLeague(opts = {}) {
   const league = new League({
     seed: opts.seed ?? 'gridiron',
@@ -236,28 +250,36 @@ export function generateLeague(opts = {}) {
     phase: PHASES.PRESEASON,
     userTeamId: opts.userTeamId ?? null,
   });
-  const rng = league.rng;
+  // Construction runs off its own stream. league.rng is left untouched at its
+  // starting state so two franchises with different seeds diverge from the
+  // first snap of the first game rather than from the roster sheet.
+  const rng = new RNG(opts.buildSeed ?? LEAGUE_BUILD_SEED);
   const usedNames = new Set();
   const cap = capForYear(0);
 
-  // Spread the league across a talent curve: a few real contenders, a few
-  // genuinely bad clubs, most of them close enough that a good week matters.
-  const strengths = TEAM_DATA.map(() => rng.gauss(0, 2.9));
-
-  TEAM_DATA.forEach((data, i) => {
+  TEAM_DATA.forEach((data) => {
     const team = new Team({ id: data.id });
-    const strength = clamp(strengths[i], -9, 9);
+    const ident = identityFor(data.id);
+    // The authored talent numbers read -9..+9, but a club's *whole roster*
+    // moving that far is a bigger effect than it sounds: it lands on all
+    // twenty-two starters at once. Scaled so the gap between the best and
+    // worst rosters stays obvious without piling players onto the 99 ceiling.
+    const strength = clamp(ident.talent, -9, 9) * TALENT_SCALE;
     team.isUserTeam = data.id === league.userTeamId;
+    team.identity = ident.identity;
+    team.window = ident.window;
 
-    // A well-run club has a better staff, which compounds over seasons.
-    const staffQuality = clamp(58 + strength * 1.4 + rng.gauss(0, 6), 32, 92);
+    // Coaching is its own axis. A club can be loaded and badly run, or thin and
+    // superbly coached, and both should be true on day one.
+    const staffQuality = clamp(60 + ident.coaching * 3.1 + rng.gauss(0, 3), 30, 94);
     team.staff = generateStaff(rng, data.id, staffQuality, usedNames);
 
-    generateRoster(rng, team, strength, usedNames);
-    assignContracts(rng, team, 0, cap);
+    // Where this club has spent, and where it has not.
+    generateRoster(rng, team, strength, usedNames, groupAdjustments(ident));
+    assignContracts(rng, team, 0, cap, WINDOW_PAYROLL[ident.window] ?? WINDOW_PAYROLL.steady);
 
-    team.chemistry = clamp(Math.round(58 + strength * 1.1 + rng.gauss(0, 8)), 25, 95);
-    team.ownerPatience = clamp(Math.round(62 - strength * 0.9 + rng.gauss(0, 10)), 20, 95);
+    team.chemistry = clamp(Math.round(58 + ident.coaching * 1.9 + rng.gauss(0, 5)), 25, 95);
+    team.ownerPatience = clamp(Math.round(62 - strength * 0.9 + rng.gauss(0, 7)), 20, 95);
     team.ownerGoals = ownerGoals(rng, strength);
 
     // Three years of draft capital.

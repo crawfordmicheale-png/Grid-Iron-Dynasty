@@ -112,7 +112,7 @@ export function installPriority(play, scheme) {
   let w = schemeAffinity(play, scheme) ** 1.3;
   if (play.type === 'pass') {
     const d = play.primaryDepth ?? 8;
-    w *= d < 0 ? 1.25 : d <= 5 ? 1.0 : d <= 10 ? 1.8 : d <= 19 ? 1.02 : 0.78;
+    w *= d < 0 ? 3.0 : d <= 5 ? 0.42 : d <= 10 ? 1.5 : d <= 19 ? 2.05 : 0.9;
   }
   return w;
 }
@@ -196,7 +196,7 @@ export function callOffensivePlay(cfg) {
     // are full of shot plays, but coordinators call them sparingly.
     if (play.type === 'pass') {
       const d = play.primaryDepth ?? 8;
-      w *= d < 0 ? 1.25 : d <= 5 ? 1.0 : d <= 10 ? 1.8 : d <= 19 ? 1.02 : 0.78;
+      w *= d < 0 ? 3.0 : d <= 5 ? 0.42 : d <= 10 ? 1.5 : d <= 19 ? 2.05 : 0.9;
     }
     // Needing a chunk means the concept has to be able to produce one.
     if (sit.down >= 3 && play.type === 'pass') {
