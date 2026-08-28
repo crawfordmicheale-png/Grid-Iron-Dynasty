@@ -14,6 +14,26 @@ console.log('setup screen title:', title);
 const teamCount = await page.locator('.teamcard').count();
 console.log('team cards rendered:', teamCount);
 
+// The team picker is taller than any window, so it has to scroll. Without a
+// scroll container of its own it gets clipped at the fold by the global
+// `body { overflow: hidden }`, leaving only the first few clubs selectable.
+const scroll = await page.evaluate(() => {
+  const sc = document.querySelector('.screen--bare');
+  if (!sc) return { ok: false, why: 'no .screen--bare container' };
+  const cards = [...document.querySelectorAll('.teamcard')];
+  const last = cards[cards.length - 1];
+  sc.scrollTop = sc.scrollHeight;
+  const box = last.getBoundingClientRect();
+  return {
+    ok: sc.scrollHeight > sc.clientHeight && box.top >= 0 && box.bottom <= window.innerHeight + 2,
+    view: sc.clientHeight, content: sc.scrollHeight,
+  };
+});
+console.log(`setup scrolls to the last club: ${scroll.ok}`
+  + (scroll.view ? ` (${scroll.view}px view / ${scroll.content}px content)` : ` — ${scroll.why}`));
+if (!scroll.ok) errors.push('setup screen does not scroll to the last club');
+await page.evaluate(() => { document.querySelector('.screen--bare').scrollTop = 0; });
+
 // Pick a team and start
 await page.locator('.teamcard').filter({ hasText: 'Sentinels' }).first().click();
 await page.waitForTimeout(300);

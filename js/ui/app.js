@@ -76,9 +76,12 @@ function render() {
     return;
   }
 
-  // The setup screen owns the whole window.
+  // The setup screen owns the whole window -- but it still has to scroll. The
+  // shell normally supplies that through .screen; without a container of its
+  // own a bare screen is clipped at the fold by `body { overflow: hidden }`,
+  // which hid all but the first few clubs on the team picker.
   if (def.bare) {
-    mount(root, def.render());
+    mount(root, h('div', { class: 'screen screen--bare' }, def.render()));
     return;
   }
 

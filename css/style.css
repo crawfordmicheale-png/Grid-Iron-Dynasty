@@ -103,6 +103,8 @@ button { cursor: pointer; }
 .nav__item.is-active { color: var(--text); border-bottom-color: var(--accent); }
 
 .screen { flex: 1; overflow-y: auto; padding: 20px; }
+/* A bare screen brings its own padding. */
+.screen--bare { padding: 0; }
 .screen--flush { padding: 0; }
 
 /* ---------- Layout ---------- */

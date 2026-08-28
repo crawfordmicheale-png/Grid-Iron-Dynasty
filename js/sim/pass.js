@@ -40,8 +40,8 @@ export const PASS_TUNING = {
   accSepRelief: 4.0,       // difficulty removed per yard of separation
   accSpread: 27,           // rating points that meaningfully move an accuracy check
   sackEscapeScale: 30,
-  yacScale: 0.66,
-  yacBreakScale: 0.30,
+  yacScale: 0.46,
+  yacBreakScale: 0.38,
 };
 
 const BAND_ACC = { quick: 'accShort', short: 'accShort', intermediate: 'accMid', deep: 'accDeep' };
@@ -746,10 +746,18 @@ function computeYac(sim, look, catchResult) {
     // the distance. A tight cap here produces a league with plenty of
     // twenty-yard gains and no seventy-yard ones -- which is what leaves the
     // long touchdown missing and every drive needing ten plays.
+    // A receiver who has genuinely beaten the coverage has nobody left to beat.
+    // Scaling every break down by a help term that bottomed out at 0.4 meant
+    // even a clean deep catch finished a yard or two short of the end zone,
+    // which is why forty-yard completions had all but disappeared.
     yac += rng.gaussClamped(remap(receiver.eff('speed', ctx), 75, 99, 9, 27), 14, 0, 88)
-      * remap(helpNearby, 0, 4, 1.1, 0.4);
+      * remap(helpNearby, 0, 5, 1.7, 0.45);
   }
 
-  yac += rng.gauss(0, 1.7);
-  return Math.max(-1, yac);
+  // Real yards-after-catch are far more spread than a tight noise term allows.
+  // A man can be dropped the instant the ball arrives or find nothing but grass;
+  // squeezing that variance is what piled a third of all completions into the
+  // six-to-ten band and left the long one almost absent.
+  yac += rng.gauss(0, 2.9);
+  return Math.max(-1.5, yac);
 }
