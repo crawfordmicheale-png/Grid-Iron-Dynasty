@@ -30,13 +30,17 @@ export function expectedPoints(absolute) {
 }
 
 /** League-average conversion rate for a given distance to go. */
-export function conversionRate(distance) {
+export function conversionRate(distance, toGoal = 50) {
   // Fitted to real fourth-down conversion rates. Fourth-and-inches gets its own
   // bump because that situation is a quarterback sneak, which converts far
   // better than the curve for every other distance would suggest.
   const base = 0.24 + 0.60 * logistic((3.0 - distance) / 2.6);
   const sneak = distance <= 1 ? 0.03 : 0;
-  return clamp(base + sneak, 0.08, 0.75);
+  // Fourth and three from the eight is not fourth and three from midfield.
+  // There is no room behind the defense, so the same distance converts less --
+  // which is exactly why coaches take the points.
+  const squeeze = clamp(remap(toGoal, 5, 25, 0.72, 1), 0.72, 1);
+  return clamp((base + sneak) * squeeze, 0.08, 0.75);
 }
 
 // --- Situational pass rate --------------------------------------------------
@@ -59,9 +63,13 @@ export function situationalPassRate(sit) {
     else rate = 0.90;
   }
 
-  // Down near the goal line the field shrinks and the run comes back.
-  if (absolute >= 97) rate -= 0.22;
-  else if (absolute >= 92) rate -= 0.10;
+  // Down near the goal line the field shrinks and the run comes back -- but
+  // only so far. Real offenses still throw it about forty percent of the time
+  // on the goal line; leaning harder than that turns every red zone trip into
+  // three runs and a field goal.
+  if (absolute >= 97) rate -= 0.02;
+  else if (absolute >= 92) rate += 0.02;
+  else if (absolute >= 80) rate += 0.05;   // the ten-to-twenty is a throwing down
   // Backed up against your own end zone, you do not want to throw.
   if (absolute <= 5) rate -= 0.12;
 
@@ -271,7 +279,7 @@ export function fourthDownDecision(cfg) {
   const { distance, absolute, scoreDiff, quarter, clock } = sit;
 
   // --- Go for it ---
-  let convert = conversionRate(distance);
+  let convert = conversionRate(distance, 100 - absolute);
   convert *= remap(offenseRating, 60, 95, 0.88, 1.12);
   convert = clamp(convert, 0.04, 0.85);
   const gainedTo = clamp(absolute + distance, 0, 99);

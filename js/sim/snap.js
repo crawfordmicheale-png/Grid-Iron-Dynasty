@@ -87,6 +87,14 @@ export function applyFatigue(sim, result) {
     p.drainStamina(3.3 * (EXERTION[p.pos] ?? 1) * intensity * altitudeMult);
     p.snapCount += 1;
   }
+
+  // Carrying the ball is not the same as running a route. The man who took the
+  // hit wears down far faster than the ten around him, which is what puts a
+  // second back on the field -- without this a workhorse takes every snap of
+  // every game and posts a season nobody has ever had.
+  if (result.rusher) result.rusher.drainStamina(2.9);
+  if (result.target && result.complete) result.target.drainStamina(2.2);
+  if (result.tackledBy) result.tackledBy.drainStamina(1.6);
 }
 
 export const INJURY_TYPES = [
@@ -225,6 +233,7 @@ export function runSnap(cfg) {
     // How well this play was practised this week. Without this the whole
     // install system is decorative: the game plan changes nothing on the field.
     execution: cfg.execution ?? 1,
+    toGoal: cfg.toGoal ?? 50,
     offCoachDiscipline: offTeam.staff?.HC?.attr('discipline') ?? 60,
     defCoachDiscipline: defTeam.staff?.HC?.attr('discipline') ?? 60,
     injuryPreventionMult: cfg.injuryPreventionMult ?? 1,

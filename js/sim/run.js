@@ -15,11 +15,11 @@ import { clamp, remap, contest, round } from '../core/util.js';
 
 export const RUN_TUNING = {
   gapYieldMin: -0.28,
-  gapYieldMax: 3.02,
+  gapYieldMax: 2.95,
   visionScale: 26,
   boxAdvantageYards: 0.60,   // yards per body of numbers advantage
   secondLevelScale: 24,
-  breakawayScale: 26,
+  breakawayScale: 24,
   baseFumble: 0.0068,
 };
 
@@ -105,11 +105,16 @@ export function resolveRun(sim) {
   const carrier = play.qbRun ? offense.QB : (offense.slots.RB ?? offense.slots.FB ?? offense.QB);
   if (!carrier) return { type: 'run', yards: 0, narrative: 'No back available.' };
 
+  // Inside the ten there is no deep third to honour, so the safeties are in the
+  // box and the linebackers are downhill. Compressing coverage but not the run
+  // fits meant every red zone trip became three handoffs and a touchdown.
+  const goalLine = clamp(remap(sim.toGoal ?? 50, 3, 16, 1, 0), 0, 1);
+
   // Numbers. Blockers available against defenders in the box.
   const blockerCount = 5
     + (offense.slots.TE ? 1 : 0) + (offense.slots.TE2 ? 1 : 0) + (offense.slots.TE3 ? 1 : 0)
     + (offense.slots.FB ? 1 : 0) + (play.qbRun ? 1 : 0);
-  const box = boxCount(defense, play);
+  const box = boxCount(defense, play) + goalLine * 0.75;
   const numbers = blockerCount - box;
 
   // Did the defense guess right? A blitz into the play side wrecks it; a blitz
@@ -154,6 +159,8 @@ export function resolveRun(sim) {
     const edge = Math.sign(numbers) * Math.sqrt(Math.abs(clamp(numbers, -4, 4)));
     yield_ += edge * T.boxAdvantageYards * (gap === play.aimGap ? 1 : 0.6);
     yield_ += blitzGuess * (gap === play.aimGap ? 1 : 0.4);
+    // There is nowhere to run to: even a won block only buys a yard or two.
+    yield_ *= 1 - goalLine * 0.12;
     yield_ += rng.gauss(0, 1.1);
     gapResults[gap] = { gap, yield: yield_, blockers, defenders, win };
   }
@@ -190,9 +197,16 @@ export function resolveRun(sim) {
       + carrier.eff('power', ctx) * 0.15 + carrier.eff('burst', ctx) * 0.15;
     const tackleSkill = fitter.eff('tackle', ctx) * 0.55 + fitter.eff('pursuit', ctx) * 0.25
       + fitter.eff('playRecognition', ctx) * 0.2;
-    const broke = rng.next() < contest(runnerSkill, tackleSkill, T.secondLevelScale) * 0.74;
+    // How the second level goes is a matter of degree, not a coin flip. Making
+    // it binary -- either a clean break for five or a tackle for nothing --
+    // piled almost half of all carries into the one-to-three band and left the
+    // four-to-nine gain, which is what actually moves the chains, missing.
+    const fit = contest(runnerSkill, tackleSkill, T.secondLevelScale);
+    yards += remap(fit, 0, 1, -1.0, 4.4) + rng.gauss(0, 2.2);
+
+    const broke = rng.next() < fit * 0.5;
     if (broke) {
-      yards += rng.gaussClamped(4.6, 3.2, 0, 16);
+      yards += rng.gaussClamped(4.6, 3.4, 0, 18);
       // --- Third level: now it is a footrace ---
       const lastLine = defense.safeties.concat(defense.cbs.slice(0, 2));
       const deepHelp = defense.coverage.deep;
@@ -201,9 +215,9 @@ export function resolveRun(sim) {
         : 70;
       const gone = rng.next() < contest(carrier.eff('speed', ctx), chaseSkill, T.breakawayScale)
         * remap(deepHelp, 0, 4, 0.72, 0.25);
-      if (gone) yards += rng.gaussClamped(17, 11, 3, 58);
-    } else {
-      yards += rng.gauss(0.4, 1.1);
+      // Past the last man it is a footrace to the end zone, and sometimes he
+      // wins it by fifty.
+      if (gone) yards += rng.gaussClamped(20, 14, 3, 74);
     }
   }
 

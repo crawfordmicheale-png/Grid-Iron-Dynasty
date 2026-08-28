@@ -19,7 +19,7 @@ import { clamp, remap, logistic, contest, round } from '../core/util.js';
 // --- Tuning constants -------------------------------------------------------
 // Named so the balance harness has one place to reach for.
 export const PASS_TUNING = {
-  baseHoldTime: 4.40,      // seconds an even blocker/rusher matchup lasts
+  baseHoldTime: 4.58,      // seconds an even blocker/rusher matchup lasts
   holdSpread: 0.32,        // lognormal sigma on that
   ratingScale: 58,         // rating points that double or halve the hold time
   unblockedTime: 1.6,      // how long an unblocked edge rusher takes to arrive
@@ -45,6 +45,9 @@ export const PASS_TUNING = {
 };
 
 const BAND_ACC = { quick: 'accShort', short: 'accShort', intermediate: 'accMid', deep: 'accDeep' };
+
+// A receiver can work the back of the end zone, but not past it.
+const END_ZONE_DEPTH = 10;
 
 // --- Protection -------------------------------------------------------------
 
@@ -209,6 +212,24 @@ export function computeSeparation(sim, slot, receiver, defender) {
     sep += ((coverage.vsDeep ?? 0) - SHELL_MEAN.deep) * -0.22;
   }
 
+  // The compressed field. Inside the twenty there is no deep third to honour,
+  // so defenders squat on the routes that are left and every window shrinks.
+  // A route that would finish past the back of the end zone has nowhere to go
+  // at all -- the receiver runs out of real estate.
+  const toGoal = sim.toGoal ?? 50;
+  // The field only really compresses inside the twenty-five. Starting the
+  // squeeze at the opponent's thirty-two also smothered the explosive play in
+  // the one stretch of field where an explosive play is a touchdown.
+  const squeeze = clamp(remap(toGoal, 8, 24, 1, 0), 0, 1);
+  if (squeeze > 0) {
+    sep -= squeeze * remap(route.depth, 0, 18, 0.3, 1.15);
+    const room = toGoal + END_ZONE_DEPTH;
+    if (route.depth > room) sep -= (route.depth - room) * 0.22;
+  }
+  // On the goal line it is eleven defenders inside fifteen yards. Nothing is
+  // open, including the things that are open everywhere else on the field.
+  if (toGoal <= 8) sep -= remap(toGoal, 1, 8, 0.6, 0.18);
+
   // A blitz means fewer defenders in coverage.
   sep += (defense.pressure.coverageCost ?? 0) * 0.24;
 
@@ -299,6 +320,10 @@ export function resolvePass(sim) {
   threshold -= qb.traitSum('aggression') * 2.4;
   threshold -= (sim.desperation ?? 0) * 0.9;
   threshold += remap(qb.eff('decision', ctx), 40, 99, -0.35, 0.5);
+  // Inside the twenty an interception costs the points you were about to take,
+  // and there is always another down. Quarterbacks get pickier, not braver --
+  // which is why red zone drives end in field goals rather than turnovers.
+  threshold += remap(clamp(sim.toGoal ?? 50, 8, 24), 8, 24, 0.15, 0);
 
   // A rusher beating his blocker is not the end of the down. The quarterback
   // steps up, slides, and throws with somebody closing -- worse, but a throw.
@@ -308,6 +333,12 @@ export function resolvePass(sim) {
     qb.eff('pocketPresence', ctx) * 0.7 + qb.eff('composure', ctx) * 0.3, 40, 95, 0.03, 0.22,
   );
   const deadline = protection.pressureTime + escape;
+
+  // Getting impatient at midfield costs a punt; getting impatient on the twelve
+  // costs three points, because the field goal was already yours. Quarterbacks
+  // stay disciplined in close and take the next down instead.
+  const urgency = T.urgencyDecay
+    * (1 - clamp(remap(sim.toGoal ?? 50, 8, 26, 1, 0), 0, 1) * 0.88);
 
   // Walk the progression against the clock.
   let t = 0;
@@ -322,7 +353,7 @@ export function resolvePass(sim) {
     // longer the play goes past the timing the concept was designed for --
     // which is how a checkdown ends up being the right answer.
     const lateness = Math.max(0, t - (play.timing ?? 2.5));
-    const needed = threshold + (look.route.risk ?? 1) * T.riskThreshold - lateness * T.urgencyDecay;
+    const needed = threshold + (look.route.risk ?? 1) * T.riskThreshold - lateness * urgency;
     if (look.separation >= needed) { chosen = look; break; }
   }
 
@@ -338,7 +369,7 @@ export function resolvePass(sim) {
     const lateness = Math.max(0, t - (play.timing ?? 2.5));
     for (const look of looks) {
       if (look.openAt > t) continue;
-      const needed = threshold + (look.route.risk ?? 1) * T.riskThreshold - lateness * T.urgencyDecay;
+      const needed = threshold + (look.route.risk ?? 1) * T.riskThreshold - lateness * urgency;
       if (look.separation >= needed) { chosen = look; readsMade += 1; break; }
     }
   }
@@ -500,7 +531,8 @@ function throwBall(sim, look, opts) {
   // before the coverage can do much about it, and a screen is nearly a handoff.
   // Scaled by actual depth rather than by band, so a four-yard drag gets the
   // same help a four-yard slant does.
-  acc += remap(clamp(airYards, -3, 12), -3, 12, 25, 1.5);
+  const goalSqueeze = clamp(remap(sim.toGoal ?? 50, 5, 18, 1, 0), 0, 1);
+  acc += remap(clamp(airYards, -3, 12), -3, 12, 25, 1.5) * (1 - goalSqueeze * 0.55);
   // Weather: wind and wet balls hurt the deep throw most.
   acc -= ctx.weather * (route.band === 'deep' ? 17 : route.band === 'intermediate' ? 10 : 5);
 
@@ -588,7 +620,8 @@ function attemptCatch(sim, look, { pressured, onTarget }) {
   // The shorter the throw, the more it is simply a catch: the ball arrives
   // flat and early, the receiver is facing the passer, and the defender is
   // still closing. That advantage fades out by the intermediate breaks.
-  logit += remap(clamp(route.depth, -3, 8), -3, 8, 1.05, 0);
+  logit += remap(clamp(route.depth, -3, 8), -3, 8, 1.05, 0)
+    * (1 - clamp(remap(sim.toGoal ?? 50, 5, 18, 1, 0), 0, 1) * 0.6);
   const catchChance = clamp(logistic(logit) / dropMult ** 0.4, 0.02, 0.97);
 
   if (rng.next() < catchChance) {
@@ -699,11 +732,21 @@ function computeYac(sim, look, catchResult) {
     // defense flowing the wrong way; a dig lands in the middle of the
     // linebackers; a man twenty-five yards downfield is running into the help
     // rather than away from it.
-    const crowding = route.band === 'deep' ? 3.2
+    // A deep ball is two different plays wearing the same name. Caught in
+    // phase with a corner draped on him, the receiver goes down where he
+    // caught it; caught having genuinely beaten the coverage, there is nobody
+    // left between him and the end zone. Averaging the two is what erased the
+    // long touchdown from the league.
+    const crowding = route.band === 'deep'
+      ? remap(clamp(separation, 0, 3), 0, 3, 3.6, 0.15)
       : route.band === 'intermediate' ? 3.4
         : route.depth < 0 ? 0.0 : 0.9;
     const helpNearby = defense.coverage.deep + crowding;
-    yac += rng.gaussClamped(remap(receiver.eff('speed', ctx), 75, 99, 5, 17), 8, 0, 62)
+    // When a man does break into the open field the play should be able to go
+    // the distance. A tight cap here produces a league with plenty of
+    // twenty-yard gains and no seventy-yard ones -- which is what leaves the
+    // long touchdown missing and every drive needing ten plays.
+    yac += rng.gaussClamped(remap(receiver.eff('speed', ctx), 75, 99, 9, 27), 14, 0, 88)
       * remap(helpNearby, 0, 4, 1.1, 0.4);
   }
 

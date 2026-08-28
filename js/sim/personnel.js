@@ -257,7 +257,11 @@ export function assignCoverage(offense, defense, rng) {
       // Deliberately modest. Bracket help should shave a star's production,
       // not push him below the third receiver -- the defense is spending extra
       // bodies on him precisely because he is still the man they fear.
-      const strength = clamp((edge - 4) * 0.06, 0, 0.9) * (0.55 + Math.min(spare, 3) * 0.22);
+      // A receiver who is twenty points better than everyone else he lines up
+      // with does not get single coverage; he gets a corner, a safety over the
+      // top, and a linebacker in his throwing lane. The old ceiling was low
+      // enough that a true outlier could post a season nobody has ever had.
+      const strength = clamp((edge - 3) * 0.075, 0, 1.5) * (0.6 + Math.min(spare, 3) * 0.25);
       brackets[top.slot] = strength;
       // Everyone else is a little more open for it.
       const relief = strength / Math.max(1, others.length) * 0.5;

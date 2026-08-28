@@ -18,12 +18,17 @@ export function fieldGoalChance(kicker, distance, ctx = {}, opts = {}) {
   const power = kicker.eff('kickPower', ctx);
   const accuracy = kicker.eff('kickAccuracy', ctx);
   // Every kicker has a range beyond which leg strength, not aim, is the limit.
-  const range = remap(power, 45, 99, 54.5, 70) + (opts.altitudeBonus ?? 0);
+  // A league-average leg is a coin flip from about fifty-five; the old 63-yard
+  // midpoint made every long attempt worth taking, which quietly ended drives
+  // at the opponent's thirty-five instead of pushing them into the red zone.
+  const range = remap(power, 45, 99, 49, 60.5) + (opts.altitudeBonus ?? 0);
 
-  // Base curve on distance alone for a league-average leg.
-  let p = logistic((range - distance) / 6.6);
+  // The real curve is not a single logistic: it is nearly flat inside forty and
+  // falls off a cliff past fifty, so the spread tightens with distance.
+  const scale = remap(distance, 25, 60, 7.5, 5.2);
+  let p = logistic((range - distance) / scale);
   // Accuracy shifts the whole curve.
-  p *= remap(accuracy, 40, 99, 0.80, 1.10);
+  p *= remap(accuracy, 40, 99, 0.88, 1.06);
   // Weather: wind and footing.
   p *= 1 - (ctx.weather ?? 0) * remap(distance, 25, 60, 0.10, 0.42);
   // A kick to win it or tie it late.
