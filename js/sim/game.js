@@ -145,6 +145,9 @@ export class Game {
     this.currentDrive = {
       teamId, startAbsolute: this.possession.absolute, startQuarter: this.clock.quarter,
       startClock: this.clock.clock, plays: 0, yards: 0, result: null, reason,
+      // Deepest point reached, so a red-zone trip can be told from a drive
+      // that stalled at midfield.
+      maxAbsolute: this.possession.absolute,
     };
     this.drives.push(this.currentDrive);
     this.emit({
@@ -393,6 +396,9 @@ export class Game {
       aggression: (offTeam.staff?.OC?.aggression ?? 0) + (offTeam._halftimeEdge ?? 0) * 4,
       desperation: sit.hurry ? 0.6 : 0,
       runGameCredibility: this.runCredibility(offTeam.id),
+      // Yards to the end zone. Inside the twenty the field stops being a field:
+      // routes run out of room and the defense has no deep third to honour.
+      toGoal: 100 - sit.absolute,
       // How well this specific play has been practised this week.
       execution: familiarityMultiplier(offTeam.gameplan, play.id)
         + situationalBonus(offTeam.gameplan, sit.absolute >= 80 ? 'redZone'
@@ -476,13 +482,16 @@ export class Game {
 
   applyResult(result, play, defCall, sit) {
     const p = this.possession;
+    if (this.currentDrive) {
+      this.currentDrive.maxAbsolute = Math.max(this.currentDrive.maxAbsolute ?? 0, sit.absolute);
+    }
     const offTeam = this.team(p.teamId);
     const defTeam = this.opponent(p.teamId);
 
     // Pre-snap penalty: no play.
     if (result.type === 'penalty') {
       this.applyPenalty(result.penalty, p, true);
-      this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: result.narrative });
+      this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: result.narrative });
       this.burnClock(this.rng.float(4, 8));
       return;
     }
@@ -493,7 +502,7 @@ export class Game {
     // Turnovers first.
     if (result.type === 'interception') {
       const spot = clamp(p.absolute + result.airYards - (result.returnYards ?? 0), 1, 99);
-      this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: result.narrative });
+      this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: result.narrative });
       this.recordPlay(result, play);
       this.burnClock(playDuration(this.rng, result));
       const takeoverAbsolute = clamp(100 - spot, 1, 99);
@@ -513,7 +522,7 @@ export class Game {
 
     // Fumble lost.
     if (result.fumble && this.rng.bool(0.52)) {
-      this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: `${result.narrative} FUMBLE — recovered by ${defTeam.abbr}!` });
+      this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: `${result.narrative} FUMBLE — recovered by ${defTeam.abbr}!` });
       this.recordPlay(result, play);
       this.burnClock(playDuration(this.rng, result));
       this.changePossession(defTeam.id, clamp(100 - clamp(newAbsolute, 1, 99), 1, 99), 'fumble');
@@ -523,7 +532,7 @@ export class Game {
     // Safety.
     if (newAbsolute <= 0) {
       this.addScore(defTeam.id, 2, 'safety');
-      this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: `${result.narrative} Safety!` });
+      this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: `${result.narrative} Safety!` });
       this.recordPlay(result, play);
       this.burnClock(playDuration(this.rng, result));
       this.endDrive('safety');
@@ -537,7 +546,7 @@ export class Game {
       result.touchdown = true;
       this.firstDownsBy[p.teamId] = (this.firstDownsBy[p.teamId] ?? 0) + 1;
       this.recordPlay(result, play);
-      this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: `${result.narrative} TOUCHDOWN.` });
+      this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: `${result.narrative} TOUCHDOWN.` });
       this.addScore(p.teamId, 6, result.isRun ? 'rushing touchdown' : 'passing touchdown');
       this.burnClock(playDuration(this.rng, result));
       this.currentDrive.yards += gained;
@@ -556,7 +565,7 @@ export class Game {
       const acceptForDefense = pen.on === 'OFF' && (pen.negates || gained > 0);
       const acceptForOffense = pen.on === 'DEF' && (penaltyYards > gained || pen.autoFirst);
       if (acceptForDefense || acceptForOffense) {
-        this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: `${result.narrative} Flag — ${pen.name} on ${pen.player.shortName}.` });
+        this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: `${result.narrative} Flag — ${pen.name} on ${pen.player.shortName}.` });
         this.recordPlay(result, play, { negated: pen.negates });
         this.applyPenalty(pen, p, pen.negates, gained);
         this.burnClock(playDuration(this.rng, result));
@@ -566,7 +575,7 @@ export class Game {
 
     // Ordinary play.
     this.recordPlay(result, play);
-    this.emit({ type: 'play', teamId: p.teamId, result, play, defCall, text: result.narrative });
+    this.emit({ type: 'play', teamId: p.teamId, absolute: sit.absolute, down: sit.down, distance: sit.distance, result, play, defCall, text: result.narrative });
     this.currentDrive.plays += 1;
     this.currentDrive.yards += gained;
 
