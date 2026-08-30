@@ -30,6 +30,7 @@ const g = {
   rushAtt: 0, rushYds: 0, rushTD: 0, fgMade: 0, fgAtt: 0, punts: 0,
   driveResults: {}, thirdDownConv: 0, thirdDownAtt: 0, fourthAtt: 0,
   penalties: 0, turnovers: 0, timeOfPossessionPlays: 0,
+  runGains: [], compGains: [],
 };
 
 const t0 = Date.now();
@@ -59,6 +60,8 @@ for (let i = 0; i < N; i += 1) {
   for (const e of r.playLog) {
     if (e.type === 'play') {
       const res = e.result;
+      if (res.isRun) g.runGains.push(res.yards ?? 0);
+      if (res.type === 'complete') g.compGains.push(res.yards ?? 0);
       if (res.type === 'complete' || res.type === 'incomplete' || res.type === 'interception' || res.type === 'throwaway') {
         g.passAtt += 1;
         if (res.route) {
@@ -125,6 +128,41 @@ row('yards per completion', round(g.passYds / g.passCmp, 2), '11.0-11.6');
 row('first downs per team', round(g.firstDowns / (N * 2), 1), '~20');
 row('seconds per play', round(3600 / (g.scrimmage / N), 1), '~28');
 row('rush TD per game', round(g.rushTD / N, 2), '~1.8');
+
+// --- Gain distribution, with a consistency check on the target itself ---------
+//
+// A band distribution and an average are not independent: the shares, weighted
+// by what each band actually gains, have to reproduce the average. Chasing a
+// set of shares that implies 5.7 yards a carry while also chasing 4.3 is a
+// target no model can satisfy, and the failure looks exactly like a model that
+// will not converge. This prints the implied figure next to the real one so
+// that mistake is visible rather than mysterious.
+function gainReport(label, gains, bins, realShares, realMean) {
+  console.log(`\n${label}`);
+  console.log('  band       share   (real)    avg gain');
+  let implied = 0;
+  bins.forEach(([lo, hi, name]) => {
+    const inBand = gains.filter((y) => y >= lo && y <= hi);
+    const share = 100 * inBand.length / Math.max(1, gains.length);
+    const avg = inBand.length ? inBand.reduce((s2, v) => s2 + v, 0) / inBand.length : 0;
+    implied += (realShares[name] / 100) * avg;
+    console.log(`  ${name.padEnd(9)} ${String(round(share, 1)).padStart(5)}%  ${String(realShares[name]).padStart(5)}%    ${String(round(avg, 2)).padStart(7)}`);
+  });
+  const actual = gains.reduce((s2, v) => s2 + v, 0) / Math.max(1, gains.length);
+  console.log(`  actual average ${round(actual, 2)}   |  the real shares above imply ${round(implied, 2)} against a stated ${realMean}`);
+  if (Math.abs(implied - realMean) > 0.6) {
+    console.log('  ^ those two disagree: the reference shares and the reference average');
+    console.log('    cannot both be right, so do not tune against them together.');
+  }
+}
+
+gainReport('RUN GAIN DISTRIBUTION', g.runGains,
+  [[-99, 0, '<= 0'], [1, 3, '1-3'], [4, 9, '4-9'], [10, 19, '10-19'], [20, 39, '20-39'], [40, 999, '40+']],
+  { '<= 0': 17, '1-3': 32, '4-9': 35, '10-19': 11, '20-39': 3, '40+': 2 }, 4.3);
+
+gainReport('COMPLETION GAIN DISTRIBUTION', g.compGains,
+  [[-99, 0, '<= 0'], [1, 5, '1-5'], [6, 10, '6-10'], [11, 15, '11-15'], [16, 24, '16-24'], [25, 39, '25-39'], [40, 999, '40+']],
+  { '<= 0': 2, '1-5': 24, '6-10': 28, '11-15': 18, '16-24': 16, '25-39': 8, '40+': 3 }, 11.3);
 
 console.log('\nPASS DEPTH');
 {
